@@ -1,8 +1,16 @@
 package org.multipaz.models.presentment
 
+import io.ktor.utils.io.core.toByteArray
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.io.bytestring.ByteString
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import org.multipaz.cbor.Bstr
 import org.multipaz.cbor.Cbor
 import org.multipaz.cbor.RawCbor
@@ -11,6 +19,8 @@ import org.multipaz.cbor.buildCborArray
 import org.multipaz.claim.Claim
 import org.multipaz.claim.findMatchingClaim
 import org.multipaz.credential.Credential
+import org.multipaz.crypto.Algorithm
+import org.multipaz.crypto.Crypto
 import org.multipaz.crypto.EcCurve
 import org.multipaz.crypto.EcPublicKey
 import org.multipaz.document.Document
@@ -39,6 +49,7 @@ import org.multipaz.securearea.KeyUnlockInteractive
 import org.multipaz.trustmanagement.TrustPoint
 import org.multipaz.util.Constants
 import org.multipaz.util.Logger
+import org.multipaz.util.toBase64Url
 
 private const val TAG = "mdocPresentment"
 
@@ -69,6 +80,7 @@ internal suspend fun mdocPresentment(
     try {
         var sessionEncryption: SessionEncryption? = null
         var encodedSessionTranscript: ByteArray? = null
+        var dcApiSelected: Boolean = false
         while (true) {
             Logger.i(TAG, "Waiting for message from reader...")
             dismissable.value = true
@@ -95,114 +107,169 @@ internal suspend fun mdocPresentment(
                     eReaderKey.publicKey,
                     encodedSessionTranscript,
                 )
+
+                dcApiSelected = SessionEncryption.getIsDcApiSelected(sessionData)
+                if (dcApiSelected) {
+                    Logger.i(TAG, "DC API selected by reader")
+                }
             }
-            val (encodedDeviceRequest, status) = sessionEncryption.decryptMessage(sessionData)
+            val (cleartextMessage, status) = sessionEncryption.decryptMessage(sessionData)
 
             if (status == Constants.SESSION_DATA_STATUS_SESSION_TERMINATION) {
                 Logger.i(TAG, "Received session termination message from reader")
                 break
             }
 
-            val deviceResponseGenerator = DeviceResponseGenerator(Constants.DEVICE_RESPONSE_STATUS_OK)
+            if (dcApiSelected) {
+                val dcRequest = Json.decodeFromString<JsonObject>(cleartextMessage!!.decodeToString())
+                // For now, just pick the first request
+                val exchangeProtocol = dcRequest["requests"]!!.jsonArray[0].jsonObject["protocol"]!!.jsonPrimitive.content
+                val data = dcRequest["requests"]!!.jsonArray[0].jsonObject["data"]!!.jsonObject
+                Logger.iJson(TAG, "exchangeProtocol $exchangeProtocol request", data)
 
-            val deviceRequest = DeviceRequest.fromDataItem(Cbor.decode(encodedDeviceRequest!!))
-            deviceRequest.verifyReaderAuthentication(sessionTranscript = RawCbor(encodedSessionTranscript!!))
-            for (docRequest in deviceRequest.docRequests) {
-                val zkRequested = docRequest.docRequestInfo?.zkRequest != null
+                val origin = "iso-18013-5://${Crypto.digest(Algorithm.SHA256, encodedSessionTranscript!!).toBase64Url()}"
 
-                val request = docRequest.toMdocRequest(
-                    documentTypeRepository = documentTypeRepository,
-                    mdocCredential = null
-                )
-                val trustPoint = source.findTrustPoint(request.requester)
-
-                val presentmentData = docRequest.getPresentmentData(
+                var responseProtocol: String? = null
+                var responseData: JsonObject? = null
+                val dcApiMechanism = object: DigitalCredentialsPresentmentMechanism(
+                    appId = "TODO",
+                    origin = origin,
+                    protocol = exchangeProtocol,
+                    data = data,
+                    preselectedDocuments = listOf()
+                ) {
+                    override fun sendResponse(protocol: String, data: JsonObject) {
+                        responseProtocol = protocol
+                        responseData = data
+                    }
+                    override fun close() {}
+                }
+                digitalCredentialsPresentment(
                     documentTypeRepository = documentTypeRepository,
                     source = source,
-                    keyAgreementPossible = listOf(mechanism.eDeviceKey.curve)
+                    mechanism = dcApiMechanism,
+                    dismissable = dismissable,
+                    showConsentPrompt = showConsentPrompt
                 )
-                if (presentmentData == null) {
-                    Logger.w(TAG, "No document found for docType ${docRequest.docType}")
-                    // No document was found
-                    continue
-                }
-                val selection = if (source.skipConsentPrompt) {
-                    presentmentData.select(listOf())
+                if (responseProtocol == null || responseData == null) {
+                    throw IllegalStateException("Expected response but got nothing")
                 } else {
-                    showConsentPrompt(
-                        presentmentData,
-                        listOf(),
-                        request.requester,
-                        trustPoint
+                    transport.sendMessage(
+                        sessionEncryption.encryptMessage(
+                            messagePlaintext = Json.encodeToString(buildJsonObject {
+                                put("protocol", JsonPrimitive(responseProtocol))
+                                put("data", responseData)
+                            }).toByteArray(),
+                            statusCode = if (!mechanism.allowMultipleRequests) {
+                                Constants.SESSION_DATA_STATUS_SESSION_TERMINATION
+                            } else {
+                                null
+                            }
+                        )
                     )
                 }
-                if (selection == null) {
-                    throw PresentmentCanceled("User canceled at document selection time")
-                }
-                val mdocCredential = selection.matches[0].credential as MdocCredential
 
-                var zkSystemMatch: ZkSystem? = null
-                var zkSystemSpec: ZkSystemSpec? = null
-                if (zkRequested) {
-                    val requesterSupportedZkSpecs = docRequest.docRequestInfo!!.zkRequest!!.systemSpecs
-                    val zkSystemRepository = source.zkSystemRepository
-                    if (zkSystemRepository != null) {
-                        // Find the first ZK System that the requester supports and matches the document
-                        for (zkSpec in requesterSupportedZkSpecs) {
-                            val zkSystem = zkSystemRepository.lookup(zkSpec.system)
-                            if (zkSystem == null) {
-                                continue
-                            }
-                            val matchingZkSystemSpec = zkSystem.getMatchingSystemSpec(
-                                zkSystemSpecs = requesterSupportedZkSpecs,
-                                requestedClaims = request.requestedClaims
-                            )
-                            if (matchingZkSystemSpec != null) {
-                                zkSystemMatch = zkSystem
-                                zkSystemSpec = matchingZkSystemSpec
-                                break
+            } else {
+                val deviceResponseGenerator = DeviceResponseGenerator(Constants.DEVICE_RESPONSE_STATUS_OK)
+                val deviceRequest = DeviceRequest.fromDataItem(Cbor.decode(cleartextMessage!!))
+                deviceRequest.verifyReaderAuthentication(sessionTranscript = RawCbor(encodedSessionTranscript!!))
+                for (docRequest in deviceRequest.docRequests) {
+                    val zkRequested = docRequest.docRequestInfo?.zkRequest != null
+
+                    val request = docRequest.toMdocRequest(
+                        documentTypeRepository = documentTypeRepository,
+                        mdocCredential = null
+                    )
+                    val trustPoint = source.findTrustPoint(request.requester)
+
+                    val presentmentData = docRequest.getPresentmentData(
+                        documentTypeRepository = documentTypeRepository,
+                        source = source,
+                        keyAgreementPossible = listOf(mechanism.eDeviceKey.curve)
+                    )
+                    if (presentmentData == null) {
+                        Logger.w(TAG, "No document found for docType ${docRequest.docType}")
+                        // No document was found
+                        continue
+                    }
+                    val selection = if (source.skipConsentPrompt) {
+                        presentmentData.select(listOf())
+                    } else {
+                        showConsentPrompt(
+                            presentmentData,
+                            listOf(),
+                            request.requester,
+                            trustPoint
+                        )
+                    }
+                    if (selection == null) {
+                        throw PresentmentCanceled("User canceled at document selection time")
+                    }
+                    val mdocCredential = selection.matches[0].credential as MdocCredential
+
+                    var zkSystemMatch: ZkSystem? = null
+                    var zkSystemSpec: ZkSystemSpec? = null
+                    if (zkRequested) {
+                        val requesterSupportedZkSpecs = docRequest.docRequestInfo!!.zkRequest!!.systemSpecs
+                        val zkSystemRepository = source.zkSystemRepository
+                        if (zkSystemRepository != null) {
+                            // Find the first ZK System that the requester supports and matches the document
+                            for (zkSpec in requesterSupportedZkSpecs) {
+                                val zkSystem = zkSystemRepository.lookup(zkSpec.system)
+                                if (zkSystem == null) {
+                                    continue
+                                }
+                                val matchingZkSystemSpec = zkSystem.getMatchingSystemSpec(
+                                    zkSystemSpecs = requesterSupportedZkSpecs,
+                                    requestedClaims = request.requestedClaims
+                                )
+                                if (matchingZkSystemSpec != null) {
+                                    zkSystemMatch = zkSystem
+                                    zkSystemSpec = matchingZkSystemSpec
+                                    break
+                                }
                             }
                         }
                     }
-                }
 
-                if (zkRequested && zkSystemSpec == null) {
-                    Logger.w(TAG, "Reader requested ZK proof but no compatible ZkSpec was found.")
-                }
+                    if (zkRequested && zkSystemSpec == null) {
+                        Logger.w(TAG, "Reader requested ZK proof but no compatible ZkSpec was found.")
+                    }
 
-                val documentBytes = calcDocument(
-                    credential = mdocCredential,
-                    requestedClaims = request.requestedClaims,
-                    encodedSessionTranscript = encodedSessionTranscript!!,
-                    eReaderKey = SessionEncryption.getEReaderKey(sessionData).publicKey,
-                )
-
-                if (zkSystemMatch != null) {
-                    val zkDocument = zkSystemMatch.generateProof(
-                        zkSystemSpec!!,
-                        ByteString(documentBytes),
-                        ByteString(encodedSessionTranscript)
+                    val documentBytes = calcDocument(
+                        credential = mdocCredential,
+                        requestedClaims = request.requestedClaims,
+                        encodedSessionTranscript = encodedSessionTranscript!!,
+                        eReaderKey = SessionEncryption.getEReaderKey(sessionData).publicKey,
                     )
 
-                    deviceResponseGenerator.addZkDocument(zkDocument)
-                } else {
-                    deviceResponseGenerator.addDocument(documentBytes)
+                    if (zkSystemMatch != null) {
+                        val zkDocument = zkSystemMatch.generateProof(
+                            zkSystemSpec!!,
+                            ByteString(documentBytes),
+                            ByteString(encodedSessionTranscript)
+                        )
+
+                        deviceResponseGenerator.addZkDocument(zkDocument)
+                    } else {
+                        deviceResponseGenerator.addDocument(documentBytes)
+                    }
+
+                    mdocCredential.increaseUsageCount()
                 }
 
-                mdocCredential.increaseUsageCount()
-            }
-
-            val encodedDeviceResponse = deviceResponseGenerator.generate()
-            transport.sendMessage(
-                sessionEncryption.encryptMessage(
-                    encodedDeviceResponse,
-                    if (!mechanism.allowMultipleRequests) {
-                        Constants.SESSION_DATA_STATUS_SESSION_TERMINATION
-                    } else {
-                        null
-                    }
+                val encodedDeviceResponse = deviceResponseGenerator.generate()
+                transport.sendMessage(
+                    sessionEncryption.encryptMessage(
+                        encodedDeviceResponse,
+                        if (!mechanism.allowMultipleRequests) {
+                            Constants.SESSION_DATA_STATUS_SESSION_TERMINATION
+                        } else {
+                            null
+                        }
+                    )
                 )
-            )
+            }
             numRequestsServed.value = numRequestsServed.value + 1
             if (!mechanism.allowMultipleRequests) {
                 Logger.i(TAG, "Response sent, closing connection")

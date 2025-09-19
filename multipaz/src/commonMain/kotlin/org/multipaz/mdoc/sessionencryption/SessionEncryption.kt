@@ -43,12 +43,15 @@ import org.multipaz.mdoc.role.MdocRole
  * it's the for the mdoc.
  * @param remotePublicKey The public ephemeral key of the other end.
  * @param encodedSessionTranscript The bytes of the `SessionTranscript` CBOR.
+ * @param selectDcApi if the cleartext messages to be exchanges are DC API JSON instead of regular DeviceRequest
+ *   DeviceResponse BOR. Must be `false` for [MdocRole.MDOC].
  */
 class SessionEncryption(
     val role: MdocRole,
     private val eSelfKey: EcPrivateKey,
     remotePublicKey: EcPublicKey,
-    encodedSessionTranscript: ByteArray
+    encodedSessionTranscript: ByteArray,
+    val selectDcApi: Boolean = false,
 ) {
     private var sessionEstablishmentSent = false
     private val skRemote: ByteArray
@@ -66,6 +69,7 @@ class SessionEncryption(
         info = "SKReader".encodeToByteArray()
         val readerSK = Crypto.hkdf(Algorithm.HMAC_SHA256, sharedSecret, salt, info, 32)
         if (role == MdocRole.MDOC) {
+            require(selectDcApi == false) { "selectDcApi must be false for MDOC role" }
             skSelf = deviceSK
             skRemote = readerSK
         } else {
@@ -135,6 +139,9 @@ class SessionEncryption(
                 var eReaderKey = eSelfKey.publicKey
                 putTaggedEncodedCbor("eReaderKey", Cbor.encode(eReaderKey.toCoseKey().toDataItem()))
                 checkNotNull(messageCiphertext) { "Data cannot be empty in initial message" }
+                if (selectDcApi) {
+                    put("dcApiSelected", true)
+                }
             }
             if (messageCiphertext != null) {
                 put("data", messageCiphertext)
@@ -226,6 +233,17 @@ class SessionEncryption(
             val encodedCoseKey = map["eReaderKey"].asTagged.asBstr
             val publicKey = Cbor.decode(encodedCoseKey).asCoseKey.ecPublicKey
             return EReaderKey(publicKey, encodedCoseKey)
+        }
+
+        /**
+         * Gets whether the reader selected the DC API.
+         *
+         * @param sessionEstablishmentMessage the bytes of a `SessionEstablishment` message.
+         * @return `true` if the reader selected the DC API, `false` otherwise.
+         */
+        fun getIsDcApiSelected(sessionEstablishmentMessage: ByteArray): Boolean {
+            val map = Cbor.decode(sessionEstablishmentMessage)
+            return map.getOrNull("dcApiSelected")?.asBoolean ?: false
         }
     }
 }

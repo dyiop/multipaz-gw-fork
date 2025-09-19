@@ -145,6 +145,9 @@ data class DeviceEngagement private constructor(
                     Capability.EXTENDED_REQUEST_SUPPORT.identifier -> {
                         capabilities.put(Capability.EXTENDED_REQUEST_SUPPORT, value)
                     }
+                    Capability.DC_API_SUPPORT.identifier -> {
+                        capabilities.put(Capability.DC_API_SUPPORT, value)
+                    }
                     else -> {
                         Logger.w(TAG, "Ignoring capability with identifier $capabilityIdentifier")
                     }

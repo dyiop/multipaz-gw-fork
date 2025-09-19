@@ -23,6 +23,7 @@ import kotlinx.io.bytestring.append
 import kotlinx.io.bytestring.encodeToByteString
 import org.multipaz.cbor.Cbor
 import org.multipaz.cbor.buildCborArray
+import org.multipaz.mdoc.engagement.Capability
 import org.multipaz.mdoc.engagement.buildDeviceEngagement
 import org.multipaz.mdoc.role.MdocRole
 import org.multipaz.util.getUInt16
@@ -242,7 +243,14 @@ class MdocNfcEngagementHelper(
         // Handover Select message is defined in section 5.2 Handover Select Message
         //
         val encodedDeviceEngagement = Cbor.encode(
-            buildDeviceEngagement(eDeviceKey = eDeviceKey) { }.toDataItem()
+            buildDeviceEngagement(eDeviceKey = eDeviceKey) {
+                addCapability(Capability.DC_API_SUPPORT, buildCborArray {
+                    add("openid4vp")
+                    add("openid4vp-v1-signed")
+                    add("openid4vp-v1-unsigned")
+                    add("org-iso-mdoc")
+                })
+            }.toDataItem()
         )
 
         // When doing Negotiated Handover, the standard says to don't include the UUIDs in Handover Select

@@ -15,9 +15,11 @@ import kotlinx.coroutines.launch
 import kotlinx.io.bytestring.ByteString
 import org.multipaz.cbor.Cbor
 import org.multipaz.cbor.Simple
+import org.multipaz.cbor.buildCborArray
 import org.multipaz.crypto.Crypto
 import org.multipaz.crypto.EcCurve
 import org.multipaz.documenttype.DocumentTypeRepository
+import org.multipaz.mdoc.engagement.Capability
 import org.multipaz.mdoc.engagement.buildDeviceEngagement
 import org.multipaz.mdoc.role.MdocRole
 import org.multipaz.mdoc.transport.MdocTransportFactory
@@ -98,7 +100,15 @@ fun MdocProximityQrPresentment(
                         )
                         val encodedDeviceEngagement = ByteString(Cbor.encode(
                             buildDeviceEngagement(eDeviceKey = eDeviceKey.publicKey) {
-                                advertisedTransports.map { addConnectionMethod(it.connectionMethod) }
+                                advertisedTransports.map {
+                                    addConnectionMethod(it.connectionMethod)
+                                    addCapability(Capability.DC_API_SUPPORT, buildCborArray {
+                                        add("openid4vp")
+                                        add("openid4vp-v1-signed")
+                                        add("openid4vp-v1-unsigned")
+                                        add("org-iso-mdoc")
+                                    })
+                                }
                             }.toDataItem()
                         ))
                         qrCodeToShow.value = "mdoc:" + encodedDeviceEngagement.toByteArray().toBase64Url()
