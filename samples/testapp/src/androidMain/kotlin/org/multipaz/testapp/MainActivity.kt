@@ -4,7 +4,11 @@ import android.content.ComponentName
 import android.content.Intent
 import android.nfc.NfcAdapter
 import android.nfc.cardemulation.CardEmulation
+import android.os.Build
 import android.os.Bundle
+import android.service.credentials.CallingAppInfo
+import android.service.credentials.CreateCredentialRequest
+import android.service.credentials.CredentialProviderService
 import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -92,5 +96,25 @@ class MainActivity : FragmentActivity() {
                 }
             }
         }
+        checkIntent(intent)
+    }
+
+    fun checkIntent(intent: Intent): Boolean {
+        if (Build.VERSION.SDK_INT >= 34) {
+            val request = intent.getParcelableExtra(
+                CredentialProviderService.EXTRA_CREATE_CREDENTIAL_REQUEST,
+                CreateCredentialRequest::class.java
+            ) ?: return false
+            println(request)
+        } else {
+            val requestBundle = intent.getBundleExtra(
+                "android.service.credentials.extra.CREATE_CREDENTIAL_REQUEST"
+            ) ?: return false
+            val requestDataBundle = requestBundle.getBundle(
+                "androidx.credentials.provider.extra.CREATE_REQUEST_CREDENTIAL_DATA"
+            ) ?: return false
+            println(requestDataBundle)
+        }
+        return true
     }
 }

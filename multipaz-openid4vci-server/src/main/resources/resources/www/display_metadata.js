@@ -27,11 +27,7 @@ async function displayCredentialConfig(configId) {
     let title = document.createElement("h3");
     title.textContent = "Authorization Code Flow";
     item.appendChild(title);
-    let p1 = document.createElement("p");
-    item.appendChild(p1);
-    let a = document.createElement("a");
-    p1.appendChild(a);
-    a.textContent = "Credential offer using custom url schema"
+
     let url = location.href.substring(0, location.href.lastIndexOf("/"));
     let offer = {
         credential_issuer: url,
@@ -41,7 +37,38 @@ async function displayCredentialConfig(configId) {
         }
     };
     let href = urlSchema + "//?credential_offer=" + encodeURIComponent(JSON.stringify(offer));
+
+    let p0 = document.createElement("p");
+    item.appendChild(p0);
+    let a0 = document.createElement("a");
+    p0.appendChild(a0);
+    a0.textContent = "Credential offer using DC API"
+    a0.href = ""
+    a0.addEventListener("click", async function(evt) {
+        evt.preventDefault();
+        try {
+            await navigator.credentials.create({
+                digital: {
+                    requests: [
+                        {
+                            protocol: "openid4vci",
+                            data: offer
+                        }
+                    ]
+                }
+            });
+        } catch (err) {
+            alert("Error: " + err)
+        }
+    });
+
+    let p1 = document.createElement("p");
+    item.appendChild(p1);
+    let a = document.createElement("a");
+    p1.appendChild(a);
+    a.textContent = "Credential offer using custom url schema"
     a.href = href;
+
     let p2 = document.createElement("p");
     item.appendChild(p2);
     p2.textContent = "or scan the QR code below"
