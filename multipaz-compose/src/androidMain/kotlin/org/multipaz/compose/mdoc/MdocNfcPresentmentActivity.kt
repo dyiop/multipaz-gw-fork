@@ -75,7 +75,13 @@ abstract class MdocNfcPresentmentActivity : FragmentActivity() {
         setContent {
             settings.applicationTheme {
                 Scaffold { innerPadding ->
-                    PromptDialogs(settings.promptModel)
+                    PromptDialogs(
+                        promptModel = settings.promptModel,
+                        imageLoader = settings.imageLoader,
+                        appName = settings.appName,
+                        appIconPainter = painterResource(settings.appIcon),
+                        showCancelAsBack = false,
+                    )
                     Presentment(
                         modifier = Modifier.consumeWindowInsets(innerPadding),
                         appName = settings.appName,

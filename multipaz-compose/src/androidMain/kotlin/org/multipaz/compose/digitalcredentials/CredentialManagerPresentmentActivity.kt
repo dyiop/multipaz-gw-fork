@@ -1,6 +1,7 @@
 package org.multipaz.compose.digitalcredentials
 
 import android.content.Intent
+import android.graphics.Color
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.compose.setContent
@@ -96,7 +97,7 @@ abstract class CredentialManagerPresentmentActivity: FragmentActivity() {
         initializeApplication(this.applicationContext)
         enableEdgeToEdge()
 
-        window.setBackgroundDrawable(android.graphics.Color.TRANSPARENT.toDrawable())
+        window.setBackgroundDrawable(Color.TRANSPARENT.toDrawable())
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
             setTranslucent(true)
         }
@@ -177,7 +178,13 @@ abstract class CredentialManagerPresentmentActivity: FragmentActivity() {
 
         setContent {
             settings.applicationTheme {
-                PromptDialogs(settings.promptModel)
+                PromptDialogs(
+                    promptModel = settings.promptModel,
+                    imageLoader = settings.imageLoader,
+                    appName = settings.appName,
+                    appIconPainter = painterResource(settings.appIcon),
+                    showCancelAsBack = true,
+                )
                 Presentment(
                     appName = settings.appName,
                     appIconPainter = painterResource(settings.appIcon),

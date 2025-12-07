@@ -57,10 +57,14 @@ import org.multipaz.mdoc.util.MdocUtil
 import org.multipaz.openid.dcql.DcqlQuery
 import org.multipaz.openid.dcql.DcqlResponse
 import org.multipaz.presentment.model.SimplePresentmentSource
+import org.multipaz.prompt.PromptModel
+import org.multipaz.prompt.PromptModelNotAvailableException
+import org.multipaz.prompt.requestConsent
 import org.multipaz.request.Requester
 import org.multipaz.sdjwt.SdJwt
 import org.multipaz.sdjwt.credential.KeyBoundSdJwtVcCredential
 import org.multipaz.securearea.CreateKeySettings
+import org.multipaz.securearea.KeyLockedException
 import org.multipaz.securearea.SecureArea
 import org.multipaz.securearea.SecureAreaRepository
 import org.multipaz.securearea.software.SoftwareCreateKeySettings
@@ -123,21 +127,16 @@ private enum class UseCase(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ConsentPromptScreen(
-    imageLoader: ImageLoader,
+    promptModel: PromptModel,
     documentTypeRepository: DocumentTypeRepository,
     secureAreaRepository: SecureAreaRepository,
     showToast: (message: String) -> Unit,
 ) {
-    val coroutineScope = rememberCoroutineScope()
+    val coroutineScope = rememberCoroutineScope { promptModel }
     var useCase by remember { mutableStateOf(UseCase.entries.first()) }
     var certChain by remember { mutableStateOf(CertChain.entries.first()) }
     var origin by remember { mutableStateOf(Origin.entries.first()) }
     var appId by remember { mutableStateOf(AppId.entries.first()) }
-    var showCancelAsBack by remember { mutableStateOf(false) }
-    val queryResult = remember { mutableStateOf<QueryResult?>(null) }
-    val sheetState = rememberModalBottomSheetState(
-        skipPartiallyExpanded = true
-    )
 
     var cardArt by remember { mutableStateOf(ByteArray(0)) }
     var utopiaBreweryIcon by remember { mutableStateOf(ByteString()) }
@@ -283,19 +282,11 @@ fun ConsentPromptScreen(
         }
 
         item {
-            SettingToggle(
-                title = "Show Cancel as Back",
-                isChecked = showCancelAsBack,
-                onCheckedChange = { showCancelAsBack = it },
-            )
-        }
-
-        item {
             Button(
                 onClick = {
                     coroutineScope.launch {
                         try {
-                            queryResult.value = getQueryResult(
+                            val queryResult = getQueryResult(
                                 useCase = useCase,
                                 certChain = certChain,
                                 origin = origin,
@@ -305,57 +296,35 @@ fun ConsentPromptScreen(
                                 documentStore = documentStore,
                                 documentTypeRepository = documentTypeRepository
                             )
-                            sheetState.show()
+
+                            PromptModel.get().requestConsent(
+                                requester = queryResult.requester,
+                                trustPoint = queryResult.trustPoint,
+                                credentialPresentmentData = queryResult.dcqlResponse,
+                                preselectedDocuments = emptyList(),
+                                dynamicMetadataResolver = { requester ->
+                                    requester.certChain?.certificates?.first()
+                                        ?.getExtensionValue(OID.X509_EXTENSION_MULTIPAZ_EXTENSION.oid)?.let {
+                                            MultipazExtension.fromCbor(it).googleAccount?.let { googleAccount ->
+                                                TrustMetadata(
+                                                    displayName = googleAccount.emailAddress,
+                                                    displayIconUrl = googleAccount.profilePictureUri,
+                                                    disclaimer = "The email and picture shown are from the requester's Google Account. " +
+                                                            "This information has been verified but may not be their real identity"
+                                                )
+                                            }
+                                        }
+                                }
+                            )
                         } catch (e: Throwable) {
                             e.printStackTrace()
-                            showToast("Error evaluating query: $e")
+                            showToast(e.toString())
                         }
                     }
                 }
             ) {
                 Text("Show Consent Prompt")
             }
-        }
-    }
-
-    if (sheetState.isVisible) {
-        queryResult.value?.let {
-            CredentialPresentmentModalBottomSheet(
-                sheetState = sheetState,
-                requester = it.requester,
-                trustPoint = it.trustPoint,
-                credentialPresentmentData = it.dcqlResponse,
-                preselectedDocuments = emptyList(),
-                imageLoader = imageLoader,
-                dynamicMetadataResolver = { requester ->
-                    requester.certChain?.certificates?.first()
-                        ?.getExtensionValue(OID.X509_EXTENSION_MULTIPAZ_EXTENSION.oid)?.let {
-                            MultipazExtension.fromCbor(it).googleAccount?.let {
-                                TrustMetadata(
-                                    displayName = it.emailAddress,
-                                    displayIconUrl = it.profilePictureUri,
-                                    disclaimer = "The email and picture shown are from the requester's Google Account. " +
-                                            "This information has been verified but may not be their real identity"
-                                )
-                            }
-                        }
-                },
-                appName = platformAppName,
-                appIconPainter = painterResource(platformAppIcon),
-                onConfirm = { selection ->
-                    coroutineScope.launch {
-                        sheetState.hide()
-                        queryResult.value = null
-                    }
-                },
-                onCancel = {
-                    coroutineScope.launch {
-                        sheetState.hide()
-                        queryResult.value = null
-                    }
-                },
-                showCancelAsBack = showCancelAsBack
-            )
         }
     }
 }

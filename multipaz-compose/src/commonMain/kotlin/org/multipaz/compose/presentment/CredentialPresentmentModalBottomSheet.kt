@@ -209,7 +209,7 @@ private fun setMatch(
  * @param sheetState a [SheetState] for state.
  * @param requester the relying party which is requesting the data.
  * @param trustPoint if the requester is in a trust-list, the [TrustPoint] indicating this
- * @param credentialPresentmentData the combinatinos of credentials and claims that the user can select.
+ * @param credentialPresentmentData the combinations of credentials and claims that the user can select.
  * @param preselectedDocuments the list of documents the user may have preselected earlier (for
  *   example an OS-provided credential picker like Android's Credential Manager) or the empty list
  *   if the user didn't preselect.
@@ -231,7 +231,7 @@ fun CredentialPresentmentModalBottomSheet(
     credentialPresentmentData: CredentialPresentmentData,
     preselectedDocuments: List<Document>,
     imageLoader: ImageLoader,
-    dynamicMetadataResolver: (requester: Requester) -> TrustMetadata? = { chain -> null },
+    dynamicMetadataResolver: (requester: Requester) -> TrustMetadata? = { requester -> null },
     appName: String? = null,
     appIconPainter: Painter? = null,
     onConfirm: (selection: CredentialPresentmentSelection) -> Unit,

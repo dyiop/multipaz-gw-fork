@@ -58,6 +58,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import multipazproject.samples.testapp.generated.resources.Res
 import org.jetbrains.compose.resources.ExperimentalResourceApi
+import org.jetbrains.compose.resources.painterResource
 import org.jetbrains.compose.resources.stringResource
 import org.jetbrains.compose.ui.tooling.preview.Preview
 import org.multipaz.asn1.ASN1Integer
@@ -804,7 +805,13 @@ class App private constructor (val promptModel: PromptModel) {
         snackbarHostState = remember { SnackbarHostState() }
 
         AppTheme {
-            PromptDialogs(promptModel)
+            PromptDialogs(
+                promptModel = promptModel,
+                imageLoader = imageLoader,
+                appName = platformAppName,
+                appIconPainter = painterResource(platformAppIcon),
+                showCancelAsBack = false,
+            )
 
             NavHost(
                 navController = navController,
@@ -1078,7 +1085,7 @@ class App private constructor (val promptModel: PromptModel) {
                 composable<ConsentPromptDestination> { backStackEntry ->
                     WithAppBar(navController, "Consent Prompt use-cases") {
                         ConsentPromptScreen(
-                            imageLoader = imageLoader,
+                            promptModel = platformPromptModel,
                             documentTypeRepository = documentTypeRepository,
                             secureAreaRepository = secureAreaRepository,
                             showToast = { message -> showToast(message) },

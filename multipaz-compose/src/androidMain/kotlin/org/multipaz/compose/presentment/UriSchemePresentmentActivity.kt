@@ -145,7 +145,13 @@ abstract class UriSchemePresentmentActivity: FragmentActivity() {
 
         setContent {
             settings.applicationTheme {
-                PromptDialogs(settings.promptModel)
+                PromptDialogs(
+                    promptModel = settings.promptModel,
+                    imageLoader = settings.imageLoader,
+                    appName = settings.appName,
+                    appIconPainter = painterResource(settings.appIcon),
+                    showCancelAsBack = true,
+                )
                 Presentment(
                     appName = settings.appName,
                     appIconPainter = painterResource(settings.appIcon),

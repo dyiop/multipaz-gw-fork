@@ -1,7 +1,12 @@
 package org.multipaz.prompt
 
-import org.multipaz.prompt.PassphrasePromptDialogModel.PassphraseRequest
+import org.multipaz.document.Document
+import org.multipaz.presentment.CredentialPresentmentData
+import org.multipaz.presentment.CredentialPresentmentSelection
+import org.multipaz.request.Requester
 import org.multipaz.securearea.PassphraseConstraints
+import org.multipaz.trustmanagement.TrustMetadata
+import org.multipaz.trustmanagement.TrustPoint
 
 /**
  * Prompts user for authentication through a passphrase.
@@ -34,11 +39,47 @@ suspend fun PromptModel.requestPassphrase(
     passphraseEvaluator: (suspend (enteredPassphrase: String) -> PassphraseEvaluation)?
 ): String {
     return getDialogModel(PassphrasePromptDialogModel.DialogType).displayPrompt(
-        PassphraseRequest(
+        PassphrasePromptDialogModel.PassphraseRequest(
             title,
             subtitle,
             passphraseConstraints,
             passphraseEvaluator
+        )
+    )
+}
+
+/**
+ * Prompts the user for consent to release a set of credentials with selectively disclosable
+ * claims to a relying party.
+ *
+ * @param requester the relying party which is requesting the data.
+ * @param trustPoint if the requester is in a trust-list, the [TrustPoint] indicating this
+ * @param credentialPresentmentData the combinatinos of credentials and claims that the user can select.
+ * @param preselectedDocuments the list of documents the user may have preselected earlier (for
+ *   example an OS-provided credential picker like Android's Credential Manager) or the empty list
+ *   if the user didn't preselect.
+ * @param dynamicMetadataResolver a function which can be used to calculate [TrustMetadata] on a
+ *   per-request basis, which may used in credential prompts.
+ * @return the credentials that the user consented to release.
+ * @throws IllegalStateException if [PromptModel] does not have [ConsentPromptDialogModal] registered
+ * @throws PromptDismissedException if user dismissed consent dialog.
+ * @throws PromptModelNotAvailableException if `coroutineContext` does not have [PromptModel].
+ * @throws PromptUiNotAvailableException if the UI layer hasn't bound any UI for [PromptModel].
+ */
+suspend fun PromptModel.requestConsent(
+    requester: Requester,
+    trustPoint: TrustPoint?,
+    credentialPresentmentData: CredentialPresentmentData,
+    preselectedDocuments: List<Document>,
+    dynamicMetadataResolver: (requester: Requester) -> TrustMetadata?
+): CredentialPresentmentSelection {
+    return getDialogModel(ConsentPromptDialogModal.DialogType).displayPrompt(
+        ConsentPromptDialogModal.Parameters(
+            requester,
+            trustPoint,
+            credentialPresentmentData,
+            preselectedDocuments,
+            dynamicMetadataResolver
         )
     )
 }
