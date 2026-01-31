@@ -43,11 +43,7 @@ class RecordType(
                     identifier = identifier,
                     displayName = displayName,
                     description = description,
-                    icon = icon,
-                    sampleValueMdoc = null,
-                    sampleValueJson = null,
-                    parentAttribute = null,
-                    embeddedAttributes = emptyList()
+                    icon = icon
                 ),
                 subAttributes = mapOf()
             )

@@ -68,8 +68,7 @@ class MdocNamespace private constructor(
                     icon = icon,
                     sampleValueMdoc = sampleValue,
                     sampleValueJson = null,
-                    parentAttribute = null,
-                    embeddedAttributes = emptyList()
+                    parentAttribute = null
                 ),
                 mandatory
             )

@@ -9,6 +9,7 @@ import kotlinx.cinterop.usePinned
 import platform.Foundation.NSData
 import platform.Foundation.NSDate
 import platform.Foundation.NSError
+import platform.Foundation.NSProcessInfo
 import platform.Foundation.create
 import platform.Foundation.timeIntervalSince1970
 import platform.posix.memcpy
@@ -58,3 +59,12 @@ fun Clock.Companion.getSystem(): Clock = Clock.System
 
 // Helper to create duration from simple seconds (Double)
 fun Duration.Companion.fromSeconds(seconds: Double): Duration = seconds.toDuration(DurationUnit.SECONDS)
+
+/**
+ * Checks if running on iOS simulator.
+ *
+ * @return `true` if running on simulator, `false` if not.
+ */
+fun isRunningOnSimulator(): Boolean {
+    return NSProcessInfo.processInfo.environment["SIMULATOR_DEVICE_NAME"] != null
+}

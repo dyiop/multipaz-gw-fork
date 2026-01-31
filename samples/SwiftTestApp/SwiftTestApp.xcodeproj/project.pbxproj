@@ -54,11 +54,21 @@
 			);
 			target = 512DAECE2F2A31B30061F72B /* IdentityDocumentProviderExtension */;
 		};
+		7BBF4E9A2F3A2773003F6A61 /* Exceptions for "SwiftTestApp" folder in "SwiftTestApp" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 51100E662F21D4A5006B2ADD /* SwiftTestApp */;
+		};
 /* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		51100E692F21D4A5006B2ADD /* SwiftTestApp */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				7BBF4E9A2F3A2773003F6A61 /* Exceptions for "SwiftTestApp" folder in "SwiftTestApp" target */,
+			);
 			path = SwiftTestApp;
 			sourceTree = "<group>";
 		};
@@ -392,6 +402,7 @@
 				DEVELOPMENT_TEAM = "$(inherited)";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SwiftTestApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Multipaz Swift Test App";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Bluetooth LE is used for proximity presentment";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID is used to protect credential keys";
@@ -429,6 +440,7 @@
 				DEVELOPMENT_TEAM = "$(inherited)";
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = SwiftTestApp/Info.plist;
 				INFOPLIST_KEY_CFBundleDisplayName = "Multipaz Swift Test App";
 				INFOPLIST_KEY_NSBluetoothAlwaysUsageDescription = "Bluetooth LE is used for proximity presentment";
 				INFOPLIST_KEY_NSFaceIDUsageDescription = "Face ID is used to protect credential keys";

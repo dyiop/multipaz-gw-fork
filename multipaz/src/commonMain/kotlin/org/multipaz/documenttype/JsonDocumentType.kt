@@ -112,8 +112,7 @@ class JsonDocumentType private constructor(
                     icon = icon,
                     sampleValueMdoc = null,
                     sampleValueJson = sampleValue,
-                    parentAttribute = parentAttribute,
-                    embeddedAttributes = emptyList()
+                    parentAttribute = parentAttribute
                 )
             )
         }

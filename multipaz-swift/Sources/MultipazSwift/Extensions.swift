@@ -33,3 +33,5 @@ extension PresentmentSource: @unchecked Sendable {}
 extension DocumentTypeRepository: @unchecked Sendable {}
 extension CredentialPresentmentData: @unchecked Sendable {}
 extension CredentialPresentmentSelection: @unchecked Sendable {}
+extension Tags: @unchecked Sendable {}
+extension Tags.Editor: @unchecked Sendable {}

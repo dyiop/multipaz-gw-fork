@@ -16,7 +16,7 @@ struct ClaimsScreen: View {
                 ForEach(credentialInfo.claims, id:\.self) { claim in
                     if claim.attribute?.type is DocumentAttributeType.Picture {
                         if let mdocClaim = claim as? MdocClaim {
-                            // Handle some picture attributes might be set to Simple.NULL value
+                            // Some picture attributes might be set to Simple.NULL value, handle this
                             if mdocClaim.value is Bstr {
                                 KvPair(
                                     claim.displayName,

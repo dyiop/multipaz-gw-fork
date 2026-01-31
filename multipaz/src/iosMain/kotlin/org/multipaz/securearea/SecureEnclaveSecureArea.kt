@@ -10,6 +10,8 @@ import org.multipaz.storage.StorageTable
 import org.multipaz.storage.StorageTableSpec
 import kotlinx.io.bytestring.ByteString
 import org.multipaz.prompt.Reason
+import org.multipaz.util.Logger
+import org.multipaz.util.isRunningOnSimulator
 import kotlin.coroutines.coroutineContext
 
 /**
@@ -98,6 +100,18 @@ class SecureEnclaveSecureArea private constructor(
         var accessControlCreateFlags = 0L
         if (settings.userAuthenticationRequired) {
             accessControlCreateFlags = SecureEnclaveUserAuthType.encodeSet(settings.userAuthenticationTypes)
+        }
+        // If running on the simulator, no point in trying to create keys with authentication (it will fail)
+        // and since no key attestation is generated the party requesting the key creation (likely issuer) is
+        // none the wiser. And if they care about security they'd do a DeviceCheck anyway to avoid interacting
+        // with simulator instances.
+        //
+        if (isRunningOnSimulator()) {
+            if (accessControlCreateFlags != 0L) {
+                Logger.w(TAG, "Running on simulator, ignoring userAuthenticationTypes " +
+                        "set to ${settings.userAuthenticationTypes} for key creation")
+                accessControlCreateFlags = 0L
+            }
         }
         val (keyBlob, pubKey) = Crypto.secureEnclaveCreateEcPrivateKey(
             settings.algorithm,

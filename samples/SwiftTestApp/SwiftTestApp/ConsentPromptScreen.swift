@@ -168,7 +168,7 @@ private func calcConsentData(
         createKeySettings: CreateKeySettings(
             algorithm: Algorithm.esp256,
             nonce: ByteStringBuilder(initialCapacity: 3).appendString(string: "123").toByteString(),
-            userAuthenticationRequired: getIsRunningOnSimulator() ? false : true,
+            userAuthenticationRequired: true,
             userAuthenticationTimeout: 0,
             validFrom: nil,
             validUntil: nil
@@ -201,7 +201,7 @@ private func calcConsentData(
         createKeySettings: CreateKeySettings(
             algorithm: Algorithm.esp256,
             nonce: ByteStringBuilder(initialCapacity: 3).appendString(string: "123").toByteString(),
-            userAuthenticationRequired: getIsRunningOnSimulator() ? false : true,
+            userAuthenticationRequired: true,
             userAuthenticationTimeout: 0,
             validFrom: nil,
             validUntil: nil
@@ -234,7 +234,7 @@ private func calcConsentData(
         createKeySettings: CreateKeySettings(
             algorithm: Algorithm.esp256,
             nonce: ByteStringBuilder(initialCapacity: 3).appendString(string: "123").toByteString(),
-            userAuthenticationRequired: getIsRunningOnSimulator() ? false : true,
+            userAuthenticationRequired: true,
             userAuthenticationTimeout: 0,
             validFrom: nil,
             validUntil: nil
@@ -267,7 +267,7 @@ private func calcConsentData(
         createKeySettings: CreateKeySettings(
             algorithm: Algorithm.esp256,
             nonce: ByteStringBuilder(initialCapacity: 3).appendString(string: "123").toByteString(),
-            userAuthenticationRequired: getIsRunningOnSimulator() ? false : true,
+            userAuthenticationRequired: true,
             userAuthenticationTimeout: 0,
             validFrom: nil,
             validUntil: nil
@@ -593,15 +593,6 @@ private func calcConsentData(
         presentmentData: presentmentData,
         trustMetadata: trustMetadata
     )
-}
-
-
-private func getIsRunningOnSimulator() -> Bool {
-#if targetEnvironment(simulator)
-    return true
-#else
-    return false
-#endif
 }
 
 private func addCredentialsForOpenID4VPComplexExample(

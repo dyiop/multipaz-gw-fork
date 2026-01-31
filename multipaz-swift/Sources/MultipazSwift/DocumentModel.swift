@@ -152,12 +152,14 @@ public class DocumentModel {
             sortingOrder[di.document.identifier] = index
         }
         storageData = DocumentModelStorageData(sortingOrder: sortingOrder)
-        try await documentStore.getTags().edit { tags in
-            await tags.setByteString(
-                key: self.documentOrderKey,
-                value: ByteString(bytes: Cbor.shared.encode(item: self.storageData.toDataItem()))
-            )
-        }
+        try await documentStore.getTags().edit(
+            editActionFn: { tags in
+                await tags.setByteString(
+                    key: self.documentOrderKey,
+                    value: ByteString(bytes: Cbor.shared.encode(item: self.storageData.toDataItem()))
+                )
+            }
+        )
     }
 
     private func getDocumentInfo(_ document: Document) async -> DocumentInfo {

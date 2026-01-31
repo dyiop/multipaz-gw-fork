@@ -14,6 +14,7 @@ import kotlinx.datetime.TimeZone
 import org.multipaz.cbor.addCborMap
 import org.multipaz.cbor.buildCborArray
 import org.multipaz.cbor.buildCborMap
+import org.multipaz.documenttype.knowntypes.EUPersonalID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -142,12 +143,7 @@ class TestDocumentTypeRepository {
                     type = DocumentAttributeType.DateTime,
                     identifier = "",
                     displayName = "",
-                    description = "",
-                    icon = null,
-                    sampleValueMdoc = null,
-                    sampleValueJson = null,
-                    parentAttribute = null,
-                    embeddedAttributes = emptyList()
+                    description = ""
                 ),
                 false
             ).renderValue(
@@ -162,12 +158,7 @@ class TestDocumentTypeRepository {
                     type = DocumentAttributeType.DateTime,
                     identifier = "",
                     displayName = "",
-                    description = "",
-                    icon = null,
-                    sampleValueMdoc = null,
-                    sampleValueJson = null,
-                    parentAttribute = null,
-                    embeddedAttributes = emptyList()
+                    description = ""
                 ),
                 false
             ).renderValue(
@@ -190,12 +181,7 @@ class TestDocumentTypeRepository {
                         type = DocumentAttributeType.DateTime,
                         identifier = "",
                         displayName = "",
-                        description = "",
-                        icon = null,
-                        sampleValueMdoc = null,
-                        sampleValueJson = null,
-                        parentAttribute = null,
-                        embeddedAttributes = emptyList()
+                        description = ""
                     ),
                     false
                 ).renderValue(
@@ -210,12 +196,7 @@ class TestDocumentTypeRepository {
                         type = DocumentAttributeType.DateTime,
                         identifier = "",
                         displayName = "",
-                        description = "",
-                        icon = null,
-                        sampleValueMdoc = null,
-                        sampleValueJson = null,
-                        parentAttribute = null,
-                        embeddedAttributes = emptyList()
+                        description = ""
                     ),
                     false
                 ).renderValue(
@@ -315,6 +296,18 @@ class TestDocumentTypeRepository {
             mdlNs.dataElements["portrait"]?.renderValue(Bstr(byteArrayOf(1, 2, 3)))
         )
 
+    }
+
+    // This test exists to ensure that DocumentAttribute's hashCode(), toString(), and equals() doesn't
+    // stack overflow when using embedded attributes such as in the JSON version of EU PID.
+    @Test
+    fun testEUPidClaimsNoOverflow() {
+        val documentType = EUPersonalID.getDocumentType()
+        documentType.jsonDocumentType!!.claims.forEach { (key, value) ->
+            val hashCode = value.hashCode()
+            val string = value.toString()
+            val equals = value.equals(value)
+        }
     }
 
 }
