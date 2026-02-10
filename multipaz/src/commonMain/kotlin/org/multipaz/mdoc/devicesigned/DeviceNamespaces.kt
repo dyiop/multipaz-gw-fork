@@ -40,7 +40,6 @@ data class DeviceNamespaces(
          * @return the parsed representation.
          */
         fun fromDataItem(nameSpaces: DataItem): DeviceNamespaces {
-            Logger.iCbor("TAG", "nameSpaces", nameSpaces)
             val ret = mutableMapOf<String, MutableMap<String, DataItem>>()
             for ((namespaceDataItemKey, namespaceDataItemValue) in nameSpaces.asMap) {
                 val namespaceName = namespaceDataItemKey.asTstr

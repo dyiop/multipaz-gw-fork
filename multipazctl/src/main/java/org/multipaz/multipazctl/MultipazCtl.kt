@@ -16,10 +16,14 @@ import kotlinx.datetime.plus
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import org.bouncycastle.jce.provider.BouncyCastleProvider
+import org.multipaz.cbor.Cbor
+import org.multipaz.cbor.DiagnosticOption
 import org.multipaz.crypto.AsymmetricKey
 import org.multipaz.crypto.X509CertChain
 import org.multipaz.crypto.buildX509Crl
+import org.multipaz.mdoc.response.DeviceResponse
 import org.multipaz.util.Platform
+import org.multipaz.util.fromHex
 import java.io.File
 import java.nio.charset.StandardCharsets
 import java.security.Security
@@ -366,6 +370,56 @@ object MultipazCtl {
         println("")
     }
 
+    suspend fun validateDeviceResponse(args: Array<String>) {
+        val deviceResponseHexFilename =
+            getArg(args, "device_response", "device_response_hex.txt")
+        val deviceResponseHex = String(File(deviceResponseHexFilename).readBytes(), StandardCharsets.UTF_8)
+        val deviceResponseBytes = deviceResponseHex.trim().fromHex()
+        println("- Loaded DeviceResponse from $deviceResponseHexFilename")
+
+        val sessionTranscriptHexFilename =
+            getArg(args, "session_transcript", "session_transcript_hex.txt")
+        val sessionTranscriptHex = String(File(sessionTranscriptHexFilename).readBytes(), StandardCharsets.UTF_8)
+        val sessionTranscriptBytes = sessionTranscriptHex.trim().fromHex()
+        println("- Loaded SessionTranscript from $sessionTranscriptHexFilename")
+
+        val deviceResponseDataItem = Cbor.decode(deviceResponseBytes)
+        println("- Decoded DeviceResponse")
+
+        val deviceResponse = DeviceResponse.fromDataItem(deviceResponseDataItem)
+        println("- Parsed DeviceResponse")
+
+        val sessionTranscriptDataItem = Cbor.decode(sessionTranscriptBytes)
+        println("- Decoded SessionTranscript")
+
+        // TODO: maybe add support for passing eReaderKey and atTime
+        try {
+            deviceResponse.verify(
+                sessionTranscript = sessionTranscriptDataItem,
+            )
+            println("- Verified DeviceResponse")
+        } catch (e: Throwable) {
+            println("- Error verifying DeviceResponse")
+            e.printStackTrace()
+        }
+        println("- DeviceResponse:")
+        println(
+            Cbor.toDiagnostics(
+                item = deviceResponseDataItem,
+                options = setOf(DiagnosticOption.PRETTY_PRINT, DiagnosticOption.EMBEDDED_CBOR)
+            )
+        )
+        deviceResponse.documents.forEachIndexed { index, document ->
+            println("- MSO for document ${index + 1} of ${deviceResponse.documents.size}:")
+            println(
+                Cbor.toDiagnostics(
+                    item = Cbor.decode(document.issuerAuth.payload!!),
+                    options = setOf(DiagnosticOption.PRETTY_PRINT, DiagnosticOption.EMBEDDED_CBOR)
+                )
+            )
+        }
+    }
+
     fun usage(args: Array<String>) {
         println(
 """
@@ -420,6 +474,13 @@ Generate JSON for a private key and certificate according to RFC 7517:
         --private_key private_key.pem
         --certificate certificate.pem
 
+Validates a device response
+
+    multipazctl validateDeviceResponse
+        --device_response device_response_hex.txt
+        --session_transcript session_transcript_hex.txt
+
+
 Prints out version:
 
     multipazctl version
@@ -445,6 +506,7 @@ Prints out version:
                 "generateReaderRoot" -> generateReaderRoot(args)
                 "generateReaderCert" -> generateReaderCert(args)
                 "printJwk" -> printJwk(args)
+                "validateDeviceResponse" -> validateDeviceResponse(args)
                 "help" -> usage(args)
                 "version" -> version(args)
                 else -> {
