@@ -16,7 +16,6 @@ import org.multipaz.crypto.JsonWebEncryption
 import org.multipaz.crypto.X500Name
 import org.multipaz.crypto.X509CertChain
 import org.multipaz.documenttype.DocumentTypeRepository
-import org.multipaz.documenttype.DocumentCannedRequest
 import org.multipaz.documenttype.knowntypes.DrivingLicense
 import org.multipaz.documenttype.knowntypes.EUCertificateOfResidence
 import org.multipaz.documenttype.knowntypes.EUPersonalID
@@ -153,6 +152,8 @@ private data class OpenID4VPBeginRequest(
     val format: String,
     val docType: String,
     val requestId: String,
+    val rawDcql: String,
+    val multiDocumentRequestId: String,
     val protocol: String,
     val origin: String,
     val host: String,
@@ -197,6 +198,8 @@ data class Session(
     val requestFormat: String,      // "mdoc" or "vc"
     val requestDocType: String,     // mdoc DocType or VC vct
     val requestId: String,          // DocumentWellKnownRequest.id
+    val rawDcql: String,
+    val multiDocumentRequestId: String,
     val protocol: Protocol,
     val nonce: ByteString,
     val origin: String,             // e.g. https://ws.davidz25.net
@@ -486,6 +489,8 @@ private suspend fun handleDcBegin(
         requestFormat = request.format,
         requestDocType = request.docType,
         requestId = request.requestId,
+        rawDcql = request.rawDcql,
+        multiDocumentRequestId = request.multiDocumentRequestId,
         protocol = protocol,
         signRequest = request.signRequest,
         encryptResponse = request.encryptResponse,
@@ -633,6 +638,8 @@ private suspend fun handleDcBeginRawDcql(
         requestFormat = "",
         requestDocType = "",
         requestId = "",
+        rawDcql = request.rawDcql,
+        multiDocumentRequestId = "",
         protocol = protocol,
         signRequest = request.signRequest,
         encryptResponse = request.encryptResponse,
@@ -915,6 +922,8 @@ private suspend fun handleOpenID4VPBegin(
         requestFormat = request.format,
         requestDocType = request.docType,
         requestId = request.requestId,
+        rawDcql = request.rawDcql,
+        multiDocumentRequestId = request.multiDocumentRequestId,
         protocol = protocol,
         signRequest = request.signRequest,
         encryptResponse = request.encryptResponse,
@@ -960,16 +969,25 @@ private suspend fun handleOpenID4VPRequest(
 
     val readerAuthKey = createSingleUseReaderKey(session.host)
 
-    val request = lookupWellknownRequest(session.requestFormat, session.requestDocType, session.requestId)
+    var request: SingleDocumentCannedRequest? = null
 
     // We'll need responseUri later (to calculate sessionTranscript)
     val responseUri = baseUrl + "/verifier/openid4vpResponse?sessionId=${sessionId}"
 
+    val rawDcql = if (session.rawDcql.isNotEmpty()) {
+        session.rawDcql
+    } else if (session.multiDocumentRequestId.isNotEmpty()) {
+        wellKnownMultipleDocumentRequests.find { it.id == session.multiDocumentRequestId }!!.dcqlString
+    } else {
+        request = lookupWellknownRequest(session.requestFormat, session.requestDocType, session.requestId)
+        null
+    }
     val requestString = calcDcRequestStringOpenID4VP(
         version = OpenID4VP.Version.DRAFT_29,
         documentTypeRepository = documentTypeRepo,
         format = session.requestFormat,
         session = session,
+        rawDcql = rawDcql,
         request = request,
         nonce = session.nonce,
         origin = session.origin,
@@ -1122,15 +1140,18 @@ private suspend fun handleOpenID4VPGetData(
         ?: throw InvalidRequestException("No session for sessionId ${request.sessionId}")
     val session = Session.fromCbor(encodedSession.toByteArray())
 
-    val lines = when (session.requestFormat) {
-        "mdoc" -> handleGetDataMdoc(session, null)
-        "vc" -> handleGetDataSdJwt(session, null, clientId())
-        else -> throw IllegalStateException("Invalid format ${session.requestFormat}")
+    val pages = if (session.deviceResponses.isNotEmpty()) {
+        handleGetDataMdoc(session, null)
+    } else if (session.verifiablePresentations.isNotEmpty()) {
+        handleGetDataSdJwt(session, null, clientId())
+    } else {
+        throw IllegalStateException("Invalid format ${session.requestFormat}")
     }
+
     val json = Json { ignoreUnknownKeys = true }
     call.respondText(
         contentType = ContentType.Application.Json,
-        text = json.encodeToString(OpenID4VPResultData(lines))
+        text = json.encodeToString(OpenID4VPResultData(pages))
     )
 }
 
@@ -1539,6 +1560,7 @@ private suspend fun calcDcRequest(
                     documentTypeRepository,
                     format,
                     session,
+                    null,
                     request,
                     nonce,
                     origin,
@@ -1563,6 +1585,7 @@ private suspend fun calcDcRequest(
                     documentTypeRepository,
                     format,
                     session,
+                    null,
                     request,
                     nonce,
                     origin,
@@ -1587,6 +1610,7 @@ private suspend fun calcDcRequest(
                     documentTypeRepository,
                     format,
                     session,
+                    null,
                     request,
                     nonce,
                     origin,
@@ -1619,6 +1643,7 @@ private suspend fun calcDcRequest(
                     documentTypeRepository,
                     format,
                     session,
+                    null,
                     request,
                     nonce,
                     origin,
@@ -1661,6 +1686,7 @@ private suspend fun calcDcRequest(
                     documentTypeRepository,
                     format,
                     session,
+                    null,
                     request,
                     nonce,
                     origin,
@@ -1693,6 +1719,7 @@ private suspend fun calcDcRequest(
                     documentTypeRepository,
                     format,
                     session,
+                    null,
                     request,
                     nonce,
                     origin,
@@ -1878,7 +1905,8 @@ private suspend fun calcDcRequestStringOpenID4VP(
     documentTypeRepository: DocumentTypeRepository,
     format: String,
     session: Session,
-    request: SingleDocumentCannedRequest,
+    rawDcql: String?,
+    request: SingleDocumentCannedRequest?,
     nonce: ByteString,
     origin: String,
     readerKey: EcPrivateKey,
@@ -1889,70 +1917,75 @@ private suspend fun calcDcRequestStringOpenID4VP(
     responseMode: OpenID4VP.ResponseMode,
     responseUri: String?
 ): String {
-    val zkSystemSpecs = if (request.mdocRequest?.useZkp == true) {
+    val zkSystemSpecs = if (request?.mdocRequest?.useZkp == true) {
         getZkSystemRepository().getAllZkSystemSpecs()
     } else {
         emptyList()
     }
 
-    val dcql = buildJsonObject {
-        putJsonArray("credentials") {
-            if (format == "vc") {
-                addJsonObject {
-                    put("id", JsonPrimitive("cred1"))
-                    put("format", JsonPrimitive("dc+sd-jwt"))
-                    putJsonObject("meta") {
-                        put(
-                            "vct_values",
-                            buildJsonArray {
-                                add(JsonPrimitive(request.jsonRequest!!.vct))
-                            }
-                        )
-                    }
-                    putJsonArray("claims") {
-                        for (claim in request.jsonRequest!!.claimsToRequest) {
-                            addJsonObject {
-                                putJsonArray("path") {
-                                    claim.parentAttribute?.let { add(JsonPrimitive(it.identifier)) }
-                                    add(JsonPrimitive(claim.identifier))
+    val dcql = if (rawDcql != null) {
+        Json.decodeFromString<JsonObject>(rawDcql)
+    } else {
+        require(request != null) { "request cannot be null" }
+        buildJsonObject {
+            putJsonArray("credentials") {
+                if (format == "vc") {
+                    addJsonObject {
+                        put("id", JsonPrimitive("cred1"))
+                        put("format", JsonPrimitive("dc+sd-jwt"))
+                        putJsonObject("meta") {
+                            put(
+                                "vct_values",
+                                buildJsonArray {
+                                    add(JsonPrimitive(request.jsonRequest!!.vct))
+                                }
+                            )
+                        }
+                        putJsonArray("claims") {
+                            for (claim in request.jsonRequest!!.claimsToRequest) {
+                                addJsonObject {
+                                    putJsonArray("path") {
+                                        claim.parentAttribute?.let { add(JsonPrimitive(it.identifier)) }
+                                        add(JsonPrimitive(claim.identifier))
+                                    }
                                 }
                             }
                         }
                     }
-                }
-            } else {
-                addJsonObject {
-                    put("id", JsonPrimitive("cred1"))
-                    if (zkSystemSpecs.isNotEmpty()) {
-                        put("format", JsonPrimitive("mso_mdoc_zk"))
-                    } else {
-                        put("format", JsonPrimitive("mso_mdoc"))
-                    }
-                    putJsonObject("meta") {
-                        put("doctype_value", JsonPrimitive(request.mdocRequest!!.docType))
+                } else {
+                    addJsonObject {
+                        put("id", JsonPrimitive("cred1"))
                         if (zkSystemSpecs.isNotEmpty()) {
-                            putJsonArray("zk_system_type") {
-                                for (spec in zkSystemSpecs) {
-                                    addJsonObject {
-                                        put("system", spec.system)
-                                        put("id", spec.id)
-                                        spec.params.forEach { param ->
-                                            put(param.key, param.value.toJson())
+                            put("format", JsonPrimitive("mso_mdoc_zk"))
+                        } else {
+                            put("format", JsonPrimitive("mso_mdoc"))
+                        }
+                        putJsonObject("meta") {
+                            put("doctype_value", JsonPrimitive(request.mdocRequest!!.docType))
+                            if (zkSystemSpecs.isNotEmpty()) {
+                                putJsonArray("zk_system_type") {
+                                    for (spec in zkSystemSpecs) {
+                                        addJsonObject {
+                                            put("system", spec.system)
+                                            put("id", spec.id)
+                                            spec.params.forEach { param ->
+                                                put(param.key, param.value.toJson())
+                                            }
                                         }
                                     }
                                 }
                             }
                         }
-                    }
-                    putJsonArray("claims") {
-                        for (ns in request.mdocRequest!!.namespacesToRequest) {
-                            for ((de, intentToRetain) in ns.dataElementsToRequest) {
-                                addJsonObject {
-                                    putJsonArray("path") {
-                                        add(JsonPrimitive(ns.namespace))
-                                        add(JsonPrimitive(de.attribute.identifier))
+                        putJsonArray("claims") {
+                            for (ns in request.mdocRequest!!.namespacesToRequest) {
+                                for ((de, intentToRetain) in ns.dataElementsToRequest) {
+                                    addJsonObject {
+                                        putJsonArray("path") {
+                                            add(JsonPrimitive(ns.namespace))
+                                            add(JsonPrimitive(de.attribute.identifier))
+                                        }
+                                        put("intent_to_retain", JsonPrimitive(intentToRetain))
                                     }
-                                    put("intent_to_retain", JsonPrimitive(intentToRetain))
                                 }
                             }
                         }

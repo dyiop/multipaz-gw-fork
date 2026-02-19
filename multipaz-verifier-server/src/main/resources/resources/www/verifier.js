@@ -1022,6 +1022,8 @@ async function requestDocument(format, docType, requestId, rawDcql, multiDocumen
                 format: format,
                 docType: docType,
                 requestId: requestId,
+                rawDcql: rawDcql != null ? rawDcql : "",
+                multiDocumentRequestId: multiDocumentRequestId != null ? multiDocumentRequestId : "",
                 protocol: selectedProtocol,
                 origin: location.origin,
                 host: location.host,
