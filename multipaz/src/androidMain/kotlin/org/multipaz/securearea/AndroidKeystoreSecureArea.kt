@@ -38,6 +38,7 @@ import org.multipaz.storage.StorageTable
 import org.multipaz.storage.StorageTableSpec
 import org.multipaz.util.Logger
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import kotlin.time.Instant
 import kotlinx.io.bytestring.ByteString
@@ -878,7 +879,9 @@ class AndroidKeystoreSecureArea private constructor(
                 throw IllegalStateException("Test failed: ${e.message}", e)
             } finally {
                 if (keyAliasToCleanUp != null) {
-                    secureArea.deleteKey(keyAliasToCleanUp)
+                    withContext(context = NonCancellable) {
+                        secureArea.deleteKey(keyAliasToCleanUp)
+                    }
                 }
             }
         }
