@@ -13,7 +13,10 @@ import kotlinx.datetime.LocalDate
  * Reference: https://docs.uidai.gov.in/readme/verifiable-credential-specifications/iso-18013-5-aadhaar-mdoc-specs
  */
 object Aadhaar {
+    /** The ISO mdoc docType used for Aadhaar. */
     const val AADHAAR_DOCTYPE = "in.gov.uidai.aadhaar.1"
+
+    /** The ISO mdoc namespace used for Aadhaar. */
     const val AADHAAR_NAMESPACE = "in.gov.uidai.aadhaar.1"
 
     /**

@@ -797,32 +797,6 @@
     <ID>UndocumentedPublicProperty:HandoverRequestRecord.kt$HandoverRequestRecord$val version: Int</ID>
     <ID>UndocumentedPublicProperty:HandoverSelectRecord.kt$HandoverSelectRecord$val embeddedMessage: NdefMessage</ID>
     <ID>UndocumentedPublicProperty:HandoverSelectRecord.kt$HandoverSelectRecord$val version: Int</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$ACCOUNT_BALANCE : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$ACCOUNT_BOX : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$AIRPORT_SHUTTLE : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$APARTMENT : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$CALENDAR_CLOCK : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$DATE_RANGE : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$DIRECTIONS : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$DIRECTIONS_CAR : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$EMERGENCY : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$EYE_TRACKING : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$FACE : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$FINGERPRINT : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$FLAG : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$HOUSE : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$IMAGE : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$LANGUAGE : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$LANGUAGE_JAPANESE_KANA : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$LOCATION_CITY : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$MILITARY_TECH : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$NUMBERS : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$PANORAMA_WIDE_ANGLE : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$PERSON : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$PLACE : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$SIGNATURE : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$STARS : Icon</ID>
-    <ID>UndocumentedPublicProperty:Icon.kt$Icon$TODAY : Icon</ID>
     <ID>UndocumentedPublicProperty:InvalidRequestException_Cbor.kt$@CborSerializableGenerated(schemaId = "zfb1Q2R8JiYE3FeHUk3cqqon3BgLKBhEaRLJVRQxj84") val InvalidRequestException_cborSchemaId = ByteString(-51, -10, -11, 67, 100, 124, 38, 38, 4, -36, 87, -121, 82, 77, -36, -86, -86, 39, -36, 24, 11, 40, 24, 68, 105, 18, -55, 85, 20, 49, -113, -50)</ID>
     <ID>UndocumentedPublicProperty:InvalidRequestException_Cbor.kt$val InvalidRequestException.Companion.cborSchemaId: ByteString get() = InvalidRequestException_cborSchemaId</ID>
     <ID>UndocumentedPublicProperty:IssuerSignedItem.kt$IssuerSignedItem$val dataElementIdentifier: String</ID>
