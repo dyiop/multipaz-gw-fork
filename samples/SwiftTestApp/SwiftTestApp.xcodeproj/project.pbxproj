@@ -83,6 +83,12 @@
 			path = "/Users/zeuthen/StudioProjects/multipaz/multipaz-swiftui/src/iosMain/swift";
 			sourceTree = "<absolute>";
 		};
+		7B447EB42F7D770B00A9546E /* longfellow-libzk-v1 */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			name = "longfellow-libzk-v1";
+			path = "../testapp/src/commonMain/composeResources/files/longfellow-libzk-v1";
+			sourceTree = SOURCE_ROOT;
+		};
 /* End PBXFileSystemSynchronizedRootGroup section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -106,6 +112,7 @@
 		51100E5E2F21D4A5006B2ADD = {
 			isa = PBXGroup;
 			children = (
+				7B447EB42F7D770B00A9546E /* longfellow-libzk-v1 */,
 				7B10E6842F76CB4900B05767 /* swift */,
 				51BD5C5C2F22604F0082DE19 /* AdditionalConfig.xcconfig */,
 				51BD5C5D2F22604F0082DE19 /* DeveloperConfig.xcconfig */,
@@ -177,6 +184,7 @@
 			fileSystemSynchronizedGroups = (
 				512DAED02F2A31B30061F72B /* IdentityDocumentProviderExtension */,
 				7B10E6842F76CB4900B05767 /* swift */,
+				7B447EB42F7D770B00A9546E /* longfellow-libzk-v1 */,
 			);
 			name = IdentityDocumentProviderExtension;
 			packageProductDependencies = (

@@ -586,7 +586,11 @@ private func calcConsentData(
     )
 
     let query = try! DcqlQuery.companion.fromJsonString(dcql: dcqlString)
-    let presentmentData = try! await query.execute(presentmentSource: source, keyAgreementPossible: [])
+    let presentmentData = try! await query.execute(
+        presentmentSource: source,
+        keyAgreementPossible: [],
+        transactionDataMap: [:]
+    )
     
     return ConsentData(
         requester: requester,
