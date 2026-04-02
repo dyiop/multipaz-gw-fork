@@ -53,6 +53,8 @@ import org.multipaz.mdoc.rical.SignedRical
 import org.multipaz.mdoc.vical.SignedVical
 import org.multipaz.trustmanagement.TrustMetadata
 import org.multipaz.trustmanagement.TrustEntryAlreadyExistsException
+import org.multipaz.trustmanagement.TrustEntryBasedTrustManager
+import org.multipaz.trustmanagement.TrustManager
 
 @Composable
 private fun FloatingActionButtonMenu(
@@ -140,12 +142,12 @@ private fun FloatingActionButtonMenu(
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun TrustManagerScreen(
-    builtIn: TrustManagerModel,
-    user: TrustManagerModel,
+    builtIn: TrustEntryBasedTrustManager,
+    user: TrustManager,
     isVical: Boolean,
     imageLoader: ImageLoader,
-    onTrustEntryClicked: (trustEntryInfo: TrustEntryInfo) -> Unit,
-    onTrustEntryAdded: (trustEntryInfo: TrustEntryInfo) -> Unit,
+    onTrustEntryClicked: (trustManagerId: String, trustEntryId: String) -> Unit,
+    onTrustEntryAdded: (trustManagerId: String, trustEntryId: String) -> Unit,
     showToast: (message: String) -> Unit,
 ) {
     val coroutineScope = rememberCoroutineScope()
@@ -167,16 +169,11 @@ fun TrustManagerScreen(
                 coroutineScope.launch {
                     try {
                         val cert = X509Cert.fromPem(pemEncoding = files[0].toByteArray().decodeToString())
-                        val entry = user.trustManager.addX509Cert(
+                        val entry = user.addX509Cert(
                             certificate = cert,
                             metadata = TrustMetadata()
                         )
-                        val updatedInfos = user.trustManagerInfos.first { infos ->
-                            infos.any { it.entry.identifier == entry.identifier }
-                        }
-                        onTrustEntryAdded(
-                            updatedInfos.find { it.entry.identifier == entry.identifier }!!
-                        )
+                        onTrustEntryAdded(user.identifier, entry.identifier)
                     } catch (_: TrustEntryAlreadyExistsException) {
                         showImportErrorDialog.value = "A certificate with this Subject Key Identifier already exists"
                     } catch (e: Exception) {
@@ -205,16 +202,11 @@ fun TrustManagerScreen(
                             encodedSignedVical = encodedSignedVical.toByteArray(),
                             disableSignatureVerification = false
                         )
-                        val entry = user.trustManager.addVical(
+                        val entry = user.addVical(
                             encodedSignedVical = encodedSignedVical,
                             metadata = TrustMetadata()
                         )
-                        val updatedInfos = user.trustManagerInfos.first { infos ->
-                            infos.any { it.entry.identifier == entry.identifier }
-                        }
-                        onTrustEntryAdded(
-                            updatedInfos.find { it.entry.identifier == entry.identifier }!!
-                        )
+                        onTrustEntryAdded(user.identifier, entry.identifier)
                     } catch (e: Exception) {
                         if (e is CancellationException) throw e
                         e.printStackTrace()
@@ -241,16 +233,11 @@ fun TrustManagerScreen(
                             encodedSignedRical = encodedSignedRical.toByteArray(),
                             disableSignatureVerification = false
                         )
-                        val entry = user.trustManager.addRical(
+                        val entry = user.addRical(
                             encodedSignedRical = encodedSignedRical,
                             metadata = TrustMetadata()
                         )
-                        val updatedInfos = user.trustManagerInfos.first { infos ->
-                            infos.any { it.entry.identifier == entry.identifier }
-                        }
-                        onTrustEntryAdded(
-                            updatedInfos.find { it.entry.identifier == entry.identifier }!!
-                        )
+                        onTrustEntryAdded(user.identifier, entry.identifier)
                     } catch (e: Exception) {
                         if (e is CancellationException) throw e
                         e.printStackTrace()
@@ -297,33 +284,23 @@ fun TrustManagerScreen(
                 .padding(8.dp),
         ) {
             TrustEntryList(
-                trustManagerModel = builtIn,
+                trustManager = builtIn,
                 title = "Built-in",
                 imageLoader = imageLoader,
-                noItems = {
-                    Text(
-                        text = "No built-in trust points",
-                        modifier = Modifier.fillMaxWidth(),
-                        color = MaterialTheme.colorScheme.secondary,
-                        fontStyle = FontStyle.Italic,
-                        textAlign = TextAlign.Center
-                    )
-                },
-                onTrustEntryClicked = { trustEntryInfo ->
-                    onTrustEntryClicked(trustEntryInfo)
+                loading = { FloatingItemCenteredText(text = "Loading...") },
+                noItems = { FloatingItemCenteredText(text = "No built-in trust points") },
+                onTrustEntryClicked = { trustEntry ->
+                    onTrustEntryClicked(builtIn.identifier, trustEntry.identifier)
                 }
             )
             TrustEntryList(
-                trustManagerModel = user,
+                trustManager = user,
                 title = "Manually imported",
                 imageLoader = imageLoader,
-                noItems = {
-                    FloatingItemCenteredText(
-                        text = "Certificates and trust lists manually imported will appear in this list",
-                    )
-                },
-                onTrustEntryClicked = { trustEntryInfo ->
-                    onTrustEntryClicked(trustEntryInfo)
+                loading = { FloatingItemCenteredText(text = "Loading...") },
+                noItems = { FloatingItemCenteredText(text = "Certificates and trust lists manually imported will appear in this list") },
+                onTrustEntryClicked = { trustEntry ->
+                    onTrustEntryClicked(user.identifier, trustEntry.identifier)
                 }
             )
         }

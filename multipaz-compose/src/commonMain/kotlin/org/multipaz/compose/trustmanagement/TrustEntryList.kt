@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.unit.Dp
@@ -16,41 +17,52 @@ import org.multipaz.compose.branding.Branding
 import org.multipaz.compose.decodeImage
 import org.multipaz.compose.items.FloatingItemList
 import org.multipaz.compose.items.FloatingItemText
+import org.multipaz.trustmanagement.TrustEntry
+import org.multipaz.trustmanagement.TrustEntryBasedTrustManager
 
 /**
- * A Composable that displays a scrollable list of trust entries managed by a [TrustManagerModel].
+ * A Composable that displays a scrollable list of trust entries managed in a [TrustEntryBasedTrustManager].
  *
  * It observes the [TrustManagerModel.trustManagerInfos] state and automatically updates
  * when trust entries are added, removed, or modified. It's using [FloatingItemList] to
  * display items
  *
- * @param trustManagerModel The presentation model observing the underlying TrustManager.
+ * @param trustManager A [TrustEntryBasedTrustManager] holding the trust entries.
  * @param title The title to display at the top of the list.
  * @param imageLoader a [ImageLoader].
+ * @param loading A Composable to render when loading entries, normally a [FloatingItemCenteredText].
  * @param noItems A Composable to render when the trust manager is empty, normally a [FloatingItemCenteredText].
  * @param onTrustEntryClicked Callback invoked when a specific trust entry in the list is clicked.
  * @param modifier The modifier to apply to the list.
  */
 @Composable
 fun TrustEntryList(
-    trustManagerModel: TrustManagerModel,
+    trustManager: TrustEntryBasedTrustManager,
     title: String,
     imageLoader: ImageLoader,
+    loading: @Composable () -> Unit = {},
     noItems: @Composable () -> Unit = {},
-    onTrustEntryClicked: (trustEntryInfo: TrustEntryInfo) -> Unit,
+    onTrustEntryClicked: (trustEntry: TrustEntry) -> Unit,
     modifier: Modifier = Modifier
 ) {
+    val coroutineScope = rememberCoroutineScope()
+    val trustManagerModel = TrustManagerModel(
+        trustManager = trustManager,
+        coroutineScope = coroutineScope
+    )
     val infos = trustManagerModel.trustManagerInfos.collectAsState().value
     FloatingItemList(
         modifier = modifier,
         title = title,
     ) {
-        if (infos.isEmpty()) {
+        if (infos == null) {
+            loading()
+        } else if (infos.isEmpty()) {
             noItems()
         } else {
             infos.forEach { trustEntryInfo ->
                 FloatingItemText(
-                    modifier = Modifier.clickable { onTrustEntryClicked(trustEntryInfo) },
+                    modifier = Modifier.clickable { onTrustEntryClicked(trustEntryInfo.entry) },
                     image = {
                         trustEntryInfo.RenderImage(
                             size = 40.dp,

@@ -9,12 +9,12 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.multipaz.compose.trustmanagement.TrustEntryRicalEntryViewer
-import org.multipaz.compose.trustmanagement.TrustManagerModel
+import org.multipaz.trustmanagement.TrustEntryBasedTrustManager
 
 
 @Composable
 fun TrustEntryRicalEntryScreen(
-    trustManagerModel: TrustManagerModel,
+    trustManager: TrustEntryBasedTrustManager,
     ricalTrustEntryId: String,
     certNum: Int
 ) {
@@ -26,7 +26,7 @@ fun TrustEntryRicalEntryScreen(
             .padding(8.dp),
     ) {
         TrustEntryRicalEntryViewer(
-            trustManagerModel = trustManagerModel,
+            trustManager = trustManager,
             ricalTrustEntryId = ricalTrustEntryId,
             certNum = certNum
         )
