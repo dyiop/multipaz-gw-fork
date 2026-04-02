@@ -10,19 +10,17 @@ interface VerifierAssistant {
      * Checks verifier request from the front-end to ensure that only valid requests are
      * built, signed and sent to the presenter (i.e. wallet app).
      *
-     * @param request interface that represents the request
+     * @param request JSON request as sent by the front-end
+     * @returns if non-null, rewritten request that will actually get processed
      */
-    suspend fun checkRequest(request: VerifierRequest)
+    suspend fun processRequest(request: JsonObject): JsonObject?
 
     /**
      * Processes a successful presentment.
      *
-     * @param request interface that represents the original request
-     * @param response interface that represents the response from the presenter
+     * @param presentment interface that represents the request to the credential holder (e.g.
+     *  the wallet app) and its response
      * @returns if non-null, the result that should be returned to the front-end
      */
-    suspend fun processResponse(
-        request: VerifierRequest,
-        response: VerifierResponse
-    ): JsonObject?
+    suspend fun processResponse(presentment: VerifierPresentment): JsonObject?
 }

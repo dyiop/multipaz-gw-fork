@@ -58,7 +58,6 @@
             }
         } else {
             const dcResponse = await navigator.credentials.get(dcRequest);
-            console.log("Response: " + JSON.stringify(dcResponse));
             return await(await fetch(baseUrl + "process_response", {
                     method: 'POST',
                     headers: {

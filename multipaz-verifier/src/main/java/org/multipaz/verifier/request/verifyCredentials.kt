@@ -35,7 +35,6 @@ import org.multipaz.cbor.Bstr
 import org.multipaz.cbor.Cbor
 import org.multipaz.cbor.CborArray
 import org.multipaz.cbor.DataItem
-import org.multipaz.cbor.Nint
 import org.multipaz.cbor.Simple
 import org.multipaz.cbor.Tagged
 import org.multipaz.cbor.Tstr
@@ -52,13 +51,13 @@ import org.multipaz.crypto.Hpke
 import org.multipaz.crypto.JsonWebEncryption
 import org.multipaz.documenttype.DocumentAttribute
 import org.multipaz.documenttype.DocumentAttributeType
+import org.multipaz.documenttype.DocumentTypeRepository
 import org.multipaz.mdoc.response.DeviceResponse
 import org.multipaz.openid.OpenID4VP
 import org.multipaz.presentment.TransactionData
 import org.multipaz.presentment.TransactionDataCbor
 import org.multipaz.presentment.TransactionDataJson
 import org.multipaz.rpc.backend.BackendEnvironment
-import org.multipaz.rpc.cache
 import org.multipaz.rpc.handler.InvalidRequestException
 import org.multipaz.rpc.handler.SimpleCipher
 import org.multipaz.sdjwt.SdJwt
@@ -67,9 +66,7 @@ import org.multipaz.server.common.getBaseUrl
 import org.multipaz.server.common.getDomain
 import org.multipaz.server.enrollment.ServerIdentity
 import org.multipaz.server.enrollment.getServerIdentity
-import org.multipaz.storage.ephemeral.EphemeralStorage
 import org.multipaz.trustmanagement.TrustManagerInterface
-import org.multipaz.trustmanagement.TrustManager
 import org.multipaz.util.Logger
 import org.multipaz.util.fromBase64Url
 import org.multipaz.util.toBase64
@@ -79,8 +76,7 @@ import org.multipaz.verifier.session.RequestedClaim
 import org.multipaz.verifier.session.RequestedDocument
 import org.multipaz.verifier.session.Session
 import org.multipaz.verifier.customization.VerifierAssistant
-import org.multipaz.verifier.customization.VerifierRequest
-import org.multipaz.verifier.customization.VerifierResponse
+import org.multipaz.verifier.customization.VerifierPresentment
 import kotlin.collections.component1
 import kotlin.collections.component2
 import kotlin.collections.iterator
@@ -89,7 +85,10 @@ import kotlin.time.Duration.Companion.minutes
 private val defaultExchangeProtocols = listOf("org-iso-mdoc", "openid4vp-v1-signed")
 
 suspend fun makeRequest(call: ApplicationCall) {
-    val request = Json.parseToJsonElement(call.receiveText()) as JsonObject
+    val rawRequest = Json.parseToJsonElement(call.receiveText()) as JsonObject
+    val assistant = BackendEnvironment.getInterface(VerifierAssistant::class)
+    val request = assistant?.processRequest(rawRequest) ?: rawRequest
+
     val dcqlQuery = request["dcql"] as? JsonObject
         ?: throw InvalidRequestException("'dcql' is missing or invalid")
     val credentials = dcqlQuery["credentials"] as? JsonArray
@@ -106,15 +105,6 @@ suspend fun makeRequest(call: ApplicationCall) {
         // org_iso_mdoc protocol can only handle mdoc credentials
         exchangeProtocols.filter { it != "org-iso-mdoc" }
     }
-
-    BackendEnvironment.getInterface(VerifierAssistant::class)?.checkRequest(
-        object: VerifierRequest {
-            override suspend fun getDcql(): JsonObject = dcqlQuery
-            override suspend fun getTransactions(): List<JsonObject> = transactionData?.map {
-                    it as JsonObject
-                } ?: emptyList()
-        }
-    )
 
     val (sessionId, session) = Session.createSession(
         dcqlQuery = dcqlQuery.toString(),
@@ -235,15 +225,13 @@ suspend fun processDirectPost(call: ApplicationCall, encodedSessionId: String) {
 
 private suspend fun processResult(session: Session, result: JsonObject) {
     val revised = BackendEnvironment.getInterface(VerifierAssistant::class)?.processResponse(
-        request = object: VerifierRequest {
-            override suspend fun getDcql(): JsonObject =
+        presentment = object: VerifierPresentment {
+            override val dcql get(): JsonObject =
                 Json.parseToJsonElement(session.dcqlQuery).jsonObject
-            override suspend fun getTransactions(): List<JsonObject> =
+            override val transactions get(): List<JsonObject> =
                 session.jsonTransactionData?.map {
                     Json.parseToJsonElement(it).jsonObject
                 } ?: emptyList()
-        },
-        response = object: VerifierResponse {
             override val responseProtocol: String = session.responseProtocol!!
             override val rawResponse: ByteString = session.response!!
             override val response = result
@@ -289,6 +277,7 @@ private suspend fun generateRequest(
     val sessionIdentity = getServerIdentity(ServerIdentity.VERIFIER)
     val baseUrl = BackendEnvironment.getBaseUrl()
     val origin = BackendEnvironment.getDomain()
+    val documentTypeRepository = BackendEnvironment.getInterface(DocumentTypeRepository::class)!!
     val query = Json.parseToJsonElement(session.dcqlQuery).jsonObject
     return if (responseMode == OpenID4VP.ResponseMode.DC_API) {
         val docRequestOtherInfo = if (session.jsonTransactionData.isNullOrEmpty()) {
@@ -298,7 +287,7 @@ private suspend fun generateRequest(
                 base64UrlEncodedJson = session.jsonTransactionData.map {
                     it.encodeToByteArray().toBase64Url()
                 },
-                documentTypeRepository = documentTypeRepo
+                documentTypeRepository = documentTypeRepository
             ))
         }
         VerificationUtil.generateDcRequestDcql(
@@ -423,6 +412,7 @@ private suspend fun processOpenID4VPResponseText(
     ).jsonObject
     val baseUrl = BackendEnvironment.getBaseUrl()
     val origin = BackendEnvironment.getDomain()
+    val documentTypeRepository = BackendEnvironment.getInterface(DocumentTypeRepository::class)!!
     val token = decryptedResponse["vp_token"]!!.jsonObject
     val jwkThumbPrint = session.encryptionPrivateKey.publicKey
         .toJwkThumbprint(Algorithm.SHA256).toByteArray()
@@ -460,7 +450,7 @@ private suspend fun processOpenID4VPResponseText(
         base64UrlEncodedJson = session.jsonTransactionData?.map {
             it.encodeToByteArray().toBase64Url()
         } ?: emptyList(),
-        documentTypeRepository = documentTypeRepo
+        documentTypeRepository = documentTypeRepository
     )
     val requestedDocuments = extractRequestedDocuments(
         dcql = Json.parseToJsonElement(session.dcqlQuery).jsonObject
@@ -522,6 +512,7 @@ private suspend fun processIsoMdocResponse(
     }
     val base64EncryptionInfo = Cbor.encode(encryptionInfo).toBase64Url()
 
+    val documentTypeRepository = BackendEnvironment.getInterface(DocumentTypeRepository::class)!!
     val origin = BackendEnvironment.getDomain()
     val dcapiInfo = buildCborArray {
         add(base64EncryptionInfo)
@@ -556,7 +547,7 @@ private suspend fun processIsoMdocResponse(
         base64UrlEncodedJson = session.jsonTransactionData?.map {
             it.encodeToByteArray().toBase64Url()
         } ?: emptyList(),
-        documentTypeRepository = documentTypeRepo
+        documentTypeRepository = documentTypeRepository
     ).values.map { value ->
         value.map {
             TransactionDataCbor(it.type, convertTransactionDataToCbor(it))
@@ -578,12 +569,6 @@ private suspend fun processIsoMdocResponse(
     }
 }
 
-private suspend fun getTrustManager(): TrustManagerInterface =
-    BackendEnvironment.cache(TrustManagerInterface::class) { _, _ ->
-        // TODO: load from configuration?
-        TrustManager(EphemeralStorage())
-    }
-
 private suspend fun processMdocResponse(
     credentialResponse: DataItem,
     mdocSessionTranscript: DataItem,
@@ -591,7 +576,7 @@ private suspend fun processMdocResponse(
     documentRequests: List<RequestedDocument>,
     transactionDataList: List<List<TransactionData>>
 ): List<JsonObject> {
-    val trustManager = getTrustManager()
+    val trustManager = BackendEnvironment.getInterface(TrustManagerInterface::class)!!
     val deviceResponse = DeviceResponse.fromDataItem(credentialResponse)
     val transactionResponses = deviceResponse.verify(
         sessionTranscript = mdocSessionTranscript,
@@ -621,20 +606,14 @@ private suspend fun processMdocResponse(
                     val issuerSignedItem = issuerSignedItemsMap[claim.path.last().asTstr]
                         ?: continue
                     val jsonItem = when (val item = issuerSignedItem.dataElementValue) {
-                        is Tstr -> JsonPrimitive(item.asTstr)
+                        // Base64 so that we can display portrait with data url
                         is Bstr -> JsonPrimitive(item.asBstr.toBase64())
-                        is Nint, is Uint -> JsonPrimitive(item.asNumber)
-                        Simple.TRUE -> JsonPrimitive(true)
-                        Simple.FALSE -> JsonPrimitive(false)
-                        Simple.NULL -> JsonPrimitive(null as String?)
                         is Tagged -> when (item.tagNumber) {
                             Tagged.DATE_TIME_STRING,
                             Tagged.FULL_DATE_STRING -> JsonPrimitive((item.taggedItem as Tstr).asTstr)
-
-                            else -> JsonPrimitive("<unsupported>")
+                            else -> item.toJson()
                         }
-
-                        else -> JsonPrimitive("<unsupported>")
+                        else -> item.toJson()
                     }
                     val id = claim.id ?: claim.path.last().asTstr
                     put(id, jsonItem)
@@ -675,7 +654,7 @@ private suspend fun processSdJwtResponse(
     }
     val issuerCert = sdJwt.x5c?.certificates?.first()
         ?: throw InvalidRequestException("'x5c' not found")
-    val trustManager = getTrustManager()
+    val trustManager = BackendEnvironment.getInterface(TrustManagerInterface::class)!!
     val trustResult = trustManager.verify(sdJwt.x5c!!.certificates)
     return buildJsonObject {
         put("trusted", trustResult.isTrusted)

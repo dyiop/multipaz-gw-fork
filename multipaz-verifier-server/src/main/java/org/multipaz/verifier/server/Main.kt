@@ -1,13 +1,14 @@
 package org.multipaz.verifier.server
 
-import kotlinx.io.bytestring.ByteString
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
+import org.multipaz.documenttype.DocumentTypeRepository
 import org.multipaz.server.common.runServer
+import org.multipaz.trustmanagement.TrustManagerInterface
 import org.multipaz.util.Logger
 import org.multipaz.verifier.customization.VerifierAssistant
-import org.multipaz.verifier.customization.VerifierRequest
-import org.multipaz.verifier.customization.VerifierResponse
+import org.multipaz.verifier.customization.VerifierPresentment
+import org.multipaz.verifier.request.documentTypeRepo
+import org.multipaz.verifier.request.getIssuerTrustManager
 
 /**
  * Main entry point to launch the server.
@@ -21,17 +22,17 @@ class Main {
         @JvmStatic
         fun main(args: Array<String>) {
             runServer(args, environmentInitializer = {
+                add(DocumentTypeRepository::class, documentTypeRepo)
+                add(TrustManagerInterface::class, getIssuerTrustManager())
                 add(VerifierAssistant::class, object: VerifierAssistant {
-                    override suspend fun checkRequest(request: VerifierRequest) {
-                        // accept all transactions for testing
-                    }
+                    // accept all transactions for testing
+                    override suspend fun processRequest(request: JsonObject): JsonObject? = null
 
                     override suspend fun processResponse(
-                        request: VerifierRequest,
-                        response: VerifierResponse
+                        presentment: VerifierPresentment
                     ): JsonObject? {
                         // no actual processing, just print
-                        Logger.i("VerifierAssistant", "Result: ${response.response}")
+                        Logger.i("VerifierAssistant", "Result: ${presentment.response}")
                         return null
                     }
                 })

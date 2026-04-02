@@ -4,9 +4,13 @@ import kotlinx.io.bytestring.ByteString
 import kotlinx.serialization.json.JsonObject
 
 /**
- * Represents the result of a successful presentment.
+ * Represents the original request and the result of a successful presentment.
  */
-interface VerifierResponse {
+interface VerifierPresentment {
+    /** DCQL request that describes the desired credentials and claims */
+    val dcql: JsonObject
+    /** transaction data */
+    val transactions: List<JsonObject>
     /** Response protocol prefixed by "dcapi:" or "custom-url:" */
     val responseProtocol: String
     /** Raw response data */

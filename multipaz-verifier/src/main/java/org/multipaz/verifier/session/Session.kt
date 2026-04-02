@@ -8,7 +8,7 @@ import org.multipaz.crypto.EcPrivateKey
 import org.multipaz.rpc.backend.BackendEnvironment
 import org.multipaz.rpc.backend.getTable
 import org.multipaz.storage.StorageTableSpec
-import org.multipaz.verifier.customization.VerifierResponse
+import org.multipaz.verifier.customization.VerifierPresentment
 import kotlin.random.Random
 import kotlin.time.Clock
 import kotlin.time.Duration.Companion.hours
@@ -25,7 +25,7 @@ import kotlin.time.Duration.Companion.hours
  *  "custom-url:"
  * @param response raw response from the presentment
  * @property result verification result (once obtained and verified) as serialized JSON,
- *  see [VerifierResponse.response] for more info
+ *  see [VerifierPresentment.response] for more info
  */
 @CborSerializable
 data class Session(

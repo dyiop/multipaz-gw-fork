@@ -3,11 +3,6 @@ plugins {
     id("org.jetbrains.kotlin.jvm")
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.ksp)
-    alias(libs.plugins.ktor)
-}
-
-application {
-    mainClass.set("org.multipaz.verifier.server.Main")
 }
 
 kotlin {
@@ -22,6 +17,7 @@ kotlin {
 java {
     sourceCompatibility = JavaVersion.VERSION_17
     targetCompatibility = JavaVersion.VERSION_17
+    withSourcesJar()
 }
 
 dependencies {
@@ -30,7 +26,6 @@ dependencies {
     implementation(project(":multipaz-doctypes"))
     implementation(project(":multipaz-longfellow"))
     implementation(project(":multipaz-server"))
-    implementation(project(":multipaz-verifier"))
 
     implementation(libs.kotlinx.datetime)
     implementation(libs.kotlinx.serialization.json)
@@ -46,10 +41,6 @@ dependencies {
     implementation(libs.ktor.server.logging)
     implementation(libs.ktor.server.double.receive)
     implementation(libs.logback.classic)
-    implementation(libs.nimbus.oauth2.oidc.sdk)
 
     testImplementation(libs.junit)
-}
-
-ktor {
 }

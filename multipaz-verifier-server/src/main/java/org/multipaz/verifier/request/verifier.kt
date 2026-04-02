@@ -394,6 +394,10 @@ private suspend fun handleGetAvailableRequests(
             var dtSupportsMdoc = false
             var dtSupportsVc = false
             for (sr in dt.cannedRequests) {
+                if (sr.transactionData.isNotEmpty()) {
+                    // Not supported
+                    continue
+                }
                 sampleRequests.add(SampleRequest(
                     sr.id,
                     sr.displayName,
@@ -1422,7 +1426,7 @@ private suspend fun handleGetReaderRootCert(
 private val issuerTrustManagerLock = Mutex()
 private var issuerTrustManager: TrustManagerInterface? = null
 
-private suspend fun getIssuerTrustManager(): TrustManagerInterface {
+suspend fun getIssuerTrustManager(): TrustManagerInterface {
     issuerTrustManagerLock.withLock {
         issuerTrustManager?.let { return it }
         val trustManager = TrustManager(EphemeralStorage())
