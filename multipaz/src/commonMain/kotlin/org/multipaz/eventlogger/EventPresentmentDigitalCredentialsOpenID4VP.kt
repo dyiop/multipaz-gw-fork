@@ -15,6 +15,7 @@ import kotlin.time.Instant
  * @property requestJson the W3C Digital Credentials API request.
  * @property responseJson the W3C Digital Credentials API response.
  * @property vpToken the resulting vpToken.
+ * @property state OpenID4VP state parameter (if any)
  */
 data class EventPresentmentDigitalCredentialsOpenID4VP(
     override val identifier: String = "",
@@ -27,12 +28,13 @@ data class EventPresentmentDigitalCredentialsOpenID4VP(
     val protocol: String,
     val requestJson: String,
     val responseJson: String,
-    val vpToken: String
+    val vpToken: String,
+    val state: String?
 ): EventPresentment(identifier, timestamp, appData, presentmentData) {
     override fun copy(identifier: String, timestamp: Instant, appData: Map<String, DataItem>): Event = copy(
         identifier = identifier,
         timestamp = timestamp,
         appData = appData,
-        presentmentData = this.presentmentData
+        presentmentData = this.presentmentData,
     )
 }

@@ -157,6 +157,8 @@ object VerificationUtil {
      * @param jsonTransactionData JSON-formatted transaction data, *before* base64url encoding,
      *   see OpenID4VP 1.0 section 8.4.
      * @param docRequestOtherInfo transaction data encoded for use in requestInfo` map in ISO 18013-7.
+     * @param state optional state parameter defined in OpenID4VP and ISO 18013-7 that is then
+     *   included in the presentation
      * @throws IllegalArgumentException if [dcql] contains features not supported by [DeviceRequest], for
      *   example a request for credentials that aren't ISO mdocs.
      * @return a [JsonObject] with the request.
@@ -171,7 +173,8 @@ object VerificationUtil {
         responseEncryptionKey: EcPublicKey?,
         readerAuthenticationKey: AsymmetricKey.X509Compatible?,
         jsonTransactionData: List<String> = emptyList(),
-        docRequestOtherInfo: Map<String, Map<String, DataItem>> = emptyMap()
+        docRequestOtherInfo: Map<String, Map<String, DataItem>> = emptyMap(),
+        state: String? = null
     ): JsonObject {
         val requests = exchangeProtocols.map { exchangeProtocol ->
             generateSingleRequestDcql(
@@ -184,6 +187,7 @@ object VerificationUtil {
                 readerAuthenticationKey = readerAuthenticationKey,
                 jsonTransactionData = jsonTransactionData,
                 docRequestOtherInfo = docRequestOtherInfo,
+                state = state
             )
         }
         return buildJsonObject {
@@ -200,7 +204,8 @@ object VerificationUtil {
         responseEncryptionKey: EcPublicKey?,
         readerAuthenticationKey: AsymmetricKey.X509Compatible?,
         jsonTransactionData: List<String>,
-        docRequestOtherInfo: Map<String, Map<String, DataItem>>
+        docRequestOtherInfo: Map<String, Map<String, DataItem>>,
+        state: String?
     ): JsonObject = buildJsonObject {
         put("protocol", exchangeProtocol)
         when (exchangeProtocol) {
@@ -218,6 +223,7 @@ object VerificationUtil {
                         origin = origin,
                         clientId = clientId,
                         nonce = nonce.toByteArray().toBase64Url(),
+                        state = state,
                         responseEncryptionKey = responseEncryptionKey,
                         requestSigningKey = readerAuthenticationKey,
                         responseMode = OpenID4VP.ResponseMode.DC_API,

@@ -15,6 +15,7 @@ import kotlin.time.Instant
  * @property requestJwt the JWT containing the authorization request.
  * @property vpToken the resulting vpToken.
  * @property redirectUri the URI which was launched in the user's default browser if any.
+ * @property state OpenID4VP state parameter (if any)
  */
 data class EventPresentmentUriSchemeOpenID4VP(
     override val identifier: String = "",
@@ -27,12 +28,13 @@ data class EventPresentmentUriSchemeOpenID4VP(
     val origin: String?,
     val requestJwt: String,
     val vpToken: String,
-    val redirectUri: String?
+    val redirectUri: String?,
+    val state: String?
 ): EventPresentment(identifier, timestamp, appData, presentmentData) {
     override fun copy(identifier: String, timestamp: Instant, appData: Map<String, DataItem>): Event = copy(
         identifier = identifier,
         timestamp = timestamp,
         appData = appData,
-        presentmentData = this.presentmentData
+        presentmentData = this.presentmentData,
     )
 }

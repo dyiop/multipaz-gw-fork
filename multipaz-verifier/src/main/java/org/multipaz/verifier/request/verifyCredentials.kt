@@ -69,7 +69,6 @@ import org.multipaz.server.enrollment.getServerIdentity
 import org.multipaz.trustmanagement.TrustManagerInterface
 import org.multipaz.util.Logger
 import org.multipaz.util.fromBase64Url
-import org.multipaz.util.toBase64
 import org.multipaz.util.toBase64Url
 import org.multipaz.verification.VerificationUtil
 import org.multipaz.verifier.session.RequestedClaim
@@ -158,7 +157,7 @@ suspend fun processResponse(call: ApplicationCall) {
             session = session,
             responseText = responseText,
             dcApi = true,
-            sessionId = encodedSessionId
+            encodedSessionId = encodedSessionId
         )
     }
 
@@ -207,7 +206,7 @@ suspend fun processDirectPost(call: ApplicationCall, encodedSessionId: String) {
         session = session,
         responseText = responseText,
         dcApi = false,
-        sessionId = encodedSessionId
+        encodedSessionId = encodedSessionId
     )
     processResult(session, result)
     Session.updateSession(sessionId, session)
@@ -296,6 +295,7 @@ private suspend fun generateRequest(
             jsonTransactionData = session.jsonTransactionData ?: listOf(),
             docRequestOtherInfo = docRequestOtherInfo,
             nonce = session.nonce,
+            state = encodedSessionId,
             origin = origin,
             clientId = getClientId(),
             responseEncryptionKey = session.encryptionPrivateKey.publicKey,
@@ -305,6 +305,7 @@ private suspend fun generateRequest(
         OpenID4VP.generateRequest(
             version = OpenID4VP.Version.DRAFT_29,
             nonce = session.nonce.toByteArray().toBase64Url(),
+            state = encodedSessionId,
             origin = baseUrl,
             clientId = getClientId(),
             responseEncryptionKey = session.encryptionPrivateKey.publicKey,
@@ -401,7 +402,7 @@ private suspend fun processOpenID4VPResponseText(
     session: Session,
     responseText: String,
     dcApi: Boolean,
-    sessionId: String?
+    encodedSessionId: String
 ): JsonObject {
     val decryptedResponse = JsonWebEncryption.decrypt(
         responseText,
@@ -414,6 +415,12 @@ private suspend fun processOpenID4VPResponseText(
     val origin = BackendEnvironment.getDomain()
     val documentTypeRepository = BackendEnvironment.getInterface(DocumentTypeRepository::class)!!
     val token = decryptedResponse["vp_token"]!!.jsonObject
+    val state = (decryptedResponse["state"] as? JsonPrimitive)?.content
+    if (state == encodedSessionId) {
+        Logger.i(TAG, "State parameter value verified")
+    } else {
+        Logger.e(TAG, "Expected state='$encodedSessionId', got '$state'")
+    }
     val jwkThumbPrint = session.encryptionPrivateKey.publicKey
         .toJwkThumbprint(Algorithm.SHA256).toByteArray()
     val nonce = session.nonce.toByteArray().toBase64Url()
@@ -427,7 +434,7 @@ private suspend fun processOpenID4VPResponseText(
                 add(getClientId())
                 add(nonce)
                 add(jwkThumbPrint)
-                add("$baseUrl/direct_post/$sessionId")
+                add("$baseUrl/direct_post/$encodedSessionId")
             }
         }
     )
@@ -606,8 +613,6 @@ private suspend fun processMdocResponse(
                     val issuerSignedItem = issuerSignedItemsMap[claim.path.last().asTstr]
                         ?: continue
                     val jsonItem = when (val item = issuerSignedItem.dataElementValue) {
-                        // Base64 so that we can display portrait with data url
-                        is Bstr -> JsonPrimitive(item.asBstr.toBase64())
                         is Tagged -> when (item.tagNumber) {
                             Tagged.DATE_TIME_STRING,
                             Tagged.FULL_DATE_STRING -> JsonPrimitive((item.taggedItem as Tstr).asTstr)

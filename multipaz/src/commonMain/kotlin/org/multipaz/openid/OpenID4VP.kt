@@ -91,6 +91,7 @@ object OpenID4VP {
      * @param dclqQuery the DCQL query.
      * @param jsonTransactionData strings from `transaction_data` array *before* base64url encoding,
      *   see OpenID4VP 1.0 section 8.4.
+     * @param state OpenID4VP state parameter (optional)
      * @return the OpenID4VP request.
      */
     suspend fun generateRequest(
@@ -103,7 +104,8 @@ object OpenID4VP {
         responseMode: ResponseMode,
         responseUri: String?,
         dclqQuery: JsonObject,
-        jsonTransactionData: List<String> = emptyList()
+        jsonTransactionData: List<String> = emptyList(),
+        state: String? = null
     ): JsonObject {
         if (version == Version.DRAFT_24) {
             check(jsonTransactionData.isEmpty())
@@ -143,6 +145,7 @@ object OpenID4VP {
             }
             put("dcql_query", dclqQuery)
             put("nonce", nonce)
+            state?.let { put("state", it) }
             putJsonObject("client_metadata") {
                 // TODO: take parameters for all these
                 put("vp_formats_supported", buildJsonObject {
@@ -277,11 +280,13 @@ object OpenID4VP {
      * @property response the response containing [vpToken], possibly encrypted.
      * @property vpToken the VP Token.
      * @property eventData a [EventPresentmentData] to be used for logging.
+     * @property state state parameter as specified in the request (if given)
      */
     data class OpenID4VPResponse(
         val response: JsonObject,
         val vpToken: JsonObject,
-        val eventData: EventPresentmentData
+        val eventData: EventPresentmentData,
+        val state: String?,
     )
 
     /**
@@ -509,6 +514,9 @@ object OpenID4VP {
                             }
                         }
                     }
+                    (request["state"] as? JsonPrimitive)?.let {
+                        put("state", it)
+                    }
                 }
             }
 
@@ -518,6 +526,9 @@ object OpenID4VP {
                         for ((dcqlId, response) in vpTokens) {
                             put(dcqlId, response)
                         }
+                    }
+                    (request["state"] as? JsonPrimitive)?.let {
+                        put("state", it)
                     }
                 }
             }
@@ -553,7 +564,8 @@ object OpenID4VP {
                 selection = selection,
                 requester = requester,
                 trustMetadata = trustMetadata
-            )
+            ),
+            state = (request["state"] as? JsonPrimitive)?.content
         )
     }
 

@@ -169,7 +169,8 @@ suspend fun uriSchemePresentment(
             origin = origin,
             requestJwt = reqJwt,
             vpToken = Json.encodeToString(responseObject.vpToken),
-            redirectUri = redirectUri
+            redirectUri = redirectUri,
+            state = responseObject.state
         )
     )
 

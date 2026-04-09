@@ -195,7 +195,8 @@ private suspend fun digitalCredentialsOpenID4VPProtocol(
             protocol = protocol,
             requestJson = Json.encodeToString(data),
             responseJson = Json.encodeToString(responseObject.response),
-            vpToken = Json.encodeToString(responseObject.vpToken)
+            vpToken = Json.encodeToString(responseObject.vpToken),
+            state = responseObject.state
         )
     )
 
