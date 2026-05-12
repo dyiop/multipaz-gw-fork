@@ -11,6 +11,7 @@ import org.multipaz.documenttype.DocumentTypeRepository
  */
 fun DocumentTypeRepository.addUtopiaTypes(locale: String = LocalizedStrings.getCurrentLocale()) {
     addDocumentType(DigitalPaymentCredential.getDocumentType(locale))
+    addDocumentType(DigitalPaymentCredentialSdJwt.getDocumentType(locale))
     addDocumentType(EUCertificateOfResidence.getDocumentType(locale))
     addDocumentType(GermanPersonalID.getDocumentType(locale))
     addDocumentType(Loyalty.getDocumentType(locale))
